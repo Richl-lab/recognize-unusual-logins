@@ -99,12 +99,12 @@ einlesen<-function(Pfad,Output_Pfad){
     if(file_ext(Pfad)=="csv"){
       #Wenn keine Rechte bestehen die Datei auszulesen, wird das Programm abgebrochen
       if(file.access(Pfad,2)==-1){
-        stop("Gebe eine Datei an, bei der sie die Rechte zum auslesen besitzt.",.call=F)
+        stop("Enter a file for which you got the rights to read.",.call=F)
       }
       
       #Wenn die Rohdatei mind. 40% des Memorys belegn würde, wird die Datei teilweise eingelesen
       if(size>=mem*0.5){
-          cat("Die angebene Datei ist zu groß, daher wird das einlesen/verarbeitung/Feature Extraktion geteilt, dieser Prozess dauert daher länger.")
+          cat("The specified file is too large, hence the read-in/ preprocessing/ feature extraction will be splited. This process might take more time.")
           split<-T
           #Damit die Features vollständig bleiben, wird die Orginal Datei nach der Zeit sortiert
           system(paste("sort -k3 -t, ",Pfad, " >> ", Output_Pfad,"time_sort.csv",sep=""))
@@ -114,14 +114,14 @@ einlesen<-function(Pfad,Output_Pfad){
           tryCatch(expr={
             data<-read.csv(Pfad,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
           }, error=function(e){
-            stop("Gebe eine gültige nicht leere Datei an und mit dem Format übereinstimmend an: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
+            stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
           },warning = function(w){
-            stop("Gebe eine Datei an mit den Spalten Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.",.call=F)
+            stop("The file needs the following columns: Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.",.call=F)
           })
           
           #Wenn die Datei weniger als 1000 Einträge besitzt, wird das Programm abgebrochen
-          if(nrow(data)<=1000){
-            stop("Deine Datei enthält, weniger als 1000 Zeilen. Nutze eine mit mehr.",.call = F)
+          if(nrow(data)<1000){
+            stop("The file contains fewer then 1000 rows. You should use one with more.",.call = F)
           }
           
           #Bennen der Spalten und entfernen aller Events die nicht 4624 entsprechen
@@ -132,7 +132,7 @@ einlesen<-function(Pfad,Output_Pfad){
         }
       
     }else{
-      stop("Die angegebene Datei muss mit einem der Formate übereinstimmen (csv)",.call=F)
+      stop("The specified file needs to match with one of the acceptable file formats (csv)",.call=F)
     }
   
 }
@@ -147,13 +147,13 @@ teil_einlesen<-function(Pfad,zeilen_multi,back){
     return(data_new)
   }, error = function(e){
     if(zeilen_multi==0){
-      stop("Gebe eine gültige nicht leere Datei an und mit dem Format übereinstimmend an: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
+      stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
     }else{
       fertig<-T
       return(fertig) 
     }
   }, warning = function(w){
-    stop("Gebe eine Datei an mit den Spalten Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.",.call=F)
+    stop("The file needs the following columns: Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.",.call=F)
   })
 }
 
@@ -161,18 +161,18 @@ teil_einlesen<-function(Pfad,zeilen_multi,back){
 features_einlesen<-function(Pfad){
   if(file_ext(Pfad)=="csv"){
     if(file.access(Pfad,2)==-1){
-      stop("Gebe eine Datei an, bei der sie die Rechte zum auslesen besitzt.",.call=F)
+      stop("Enter a file for which you got the rights to read.",.call=F)
     }
       tryCatch(expr = {
         features<-read.csv(Pfad,row.names = 1)
         return(features)
       }, error = function(e){
-        stop("Gebe eine gültige nicht leere Datei an.",.call=F)
+        stop("Provide a valid, non-empty file.",.call=F)
       }, warning = function(w){
       })
     
   }else{
-    stop("Die angegebene Datei muss mit einem der Formate übereinstimmen (csv)",.call=F)
+    stop("The specified file needs to match with one of the acceptable file formats (csv)",.call=F)
   }
 }
 
@@ -517,7 +517,7 @@ setup_python<-function(Pfad){
   tryCatch(expr={
     use_python(as.character(system("which python3",intern = T)))
   },error=function(e){
-    stop("Python 3 ist nicht installiert.",.call=F)
+    stop("Python 3 is not installed.",.call=F)
   })
   use_virtualenv(paste(Pfad,"maliciousevents",sep=""))
 }
@@ -525,13 +525,13 @@ setup_python<-function(Pfad){
 #Führt das Python Funktion mit dem Isolationsbaum aus
 isolationforest<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
   source_python(paste(Input_Pfad,"ml/IsolationForest_Anwendung.py",sep=""))
-  isolationforest_exec(Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+  isolationforest_exec(paste(Input_Pfad,"ml/",sep=""),Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Führt die Python Funktion mit dem kNN aus
 kNN<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
   source_python(paste(Input_Pfad,"ml/kNN_Anwendung.py",sep=""))
-  knn_exec(Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+  knn_exec(paste(Input_Pfad,"ml/",sep=""),Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Nutzt einen Random Forest um Nutzer/hosts/Quell-IPs die viele Gruppen besuchen als ungewöhnlich einzustuffen
@@ -689,12 +689,12 @@ logintypen<-function(data,Pfad){
 
 allgemeine_infos<-function(data,Pfad){
   infos<-c()
-  infos[1]<-paste("Well known Source Ports die vorkommen:",paste(as.character(c(data[(data$Source_Port %in% c(1:1023) & is.na(data$Source_Port)!=T),"Source_Port"])),collapse=", "))
-  infos[2]<-paste("Anzahl an Hosts:",nrow(group_by(data,data$Host) %>% summarise(n())))
-  infos[3]<-paste("Anzahl an Nutzern:",nrow(group_by(data,data$User) %>% summarise(n())))
-  infos[4]<-paste("Anzahl an Quell-IPs:",nrow(group_by(data,data$Source) %>% summarise(n())))
-  infos[5]<-paste("Kleinstes Datum im Datensatz:",min(data$Time))
-  infos[6]<-paste("Aktuellstes Datum:",max(data$Time))
+  infos[1]<-paste("Existing Well known Source Ports:",paste(as.character(c(data[(data$Source_Port %in% c(1:1023) & is.na(data$Source_Port)!=T),"Source_Port"])),collapse=", "))
+  infos[2]<-paste("Number of Hosts:",nrow(group_by(data,data$Host) %>% summarise(n())))
+  infos[3]<-paste("Number of Users:",nrow(group_by(data,data$User) %>% summarise(n())))
+  infos[4]<-paste("Number of Source-IPs:",nrow(group_by(data,data$Source) %>% summarise(n())))
+  infos[5]<-paste("Smallest date of the data:",min(data$Time))
+  infos[6]<-paste("Newest date:",max(data$Time))
   write.table(infos,file=paste(Pfad,"Allgemeine_Infos.txt",sep=""),row.names = F,col.names = F)
 }
 
@@ -766,12 +766,12 @@ help_output<-function(){
         "Options:",
         "",
         "--help    Help output",
-        "-da       Gives a additional data analysis output",
-        "-p        Angabe der Perspektive mit dem darauffolgenden Argument, default ist User",
+        "-da       Gives an additional data analysis output",
+        "-p        Specification of the perspective with the following argument, default is User",
         "          u User   From a users point of view",
         "          h Host   From a hosts point of view",
         "          s Source From a source point of view",
-        "-t        Angabe des Zeitblockes mit dem darauffolgenden Argument, default ist Tag",
+        "-t        Specification of the time slot with the following argument, default is day",
         "          h Hour",
         "          d Day",
         "          dh Day&Hour",
@@ -781,14 +781,14 @@ help_output<-function(){
         "            enddate   Y-M-D",
         "          v Complet span",
         "-e        If you are already got an extracted feature set, you can use it instead of the data file",
-        "-m        Choose one of the given machine learning algorithm for evaluation, default is a isolation forest.",
+        "-m        Choose one of the given machine learning algorithm for evaluation, default is an isolation forest",
         "          IF Isolation forest",
         "          kNN k-nearest-neigbhour",
         "          RF Randomforest",
         "-p        Use this to limit your cores to use. The next argument should be the logical count of cores to use, default is cores-1",
         "-r        The output will be a complet ranked list",
         "-s        Save the trained model",
-        "-lm        The next argument should be the path to the directory with the trained model information",fill=2)
+        "-lm       The next argument should be the path to the directory with the trained model information",fill=2)
 }
 
 #################

@@ -2,4 +2,4 @@ numpy==1.20.1
 pandas==1.2.3
 sklearn
 pyod==0.8.7
-joblib
+joblib==1.0.1

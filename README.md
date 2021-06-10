@@ -18,6 +18,18 @@ To install and configure use the following script:
    ```sh
    . setup.sh
    ```
+Installs:
+* r-base
+* python 3.8
+* pip
+* python3-venv
+* wheel and some more python packages (requirments.txt)
+* r-packages (dplyr,...)
+
+Configuration:
+* virtual environment named maliciousevents
+* link to the FindMaliciousEvents program
+* create ~/.R directory for r site-packages
 
 ## Usage
 After the R Script should be executable:
@@ -28,6 +40,20 @@ For more information and options see:
    ```sh
    FindMaliciousEvents --help
    ```
+### Examples
+Find Unusual Logins from 2021-06-01 to 2021-07-01:
+   ```sh
+   FindMaliciousEvents raw_data.csv . -d m 2021-06-01 2021-07-01
+   ```
+Find Unusual Logins with the use of kNN and rank it:
+   ```sh
+   FindMaliciousEvents raw_data.csv . -m kNN -r
+   ```
+Find Unusual Logins from a existing feature set, that was create with this software:
+   ```sh
+   FindMaliciousEvents features.csv . -e
+   ```
+
 ## License
 
 ## Contact

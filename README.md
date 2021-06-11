@@ -61,7 +61,9 @@ Find unusual logins from a existing feature set, that was create with this softw
    FindMaliciousEvents features.csv . -e
    ```
 ## Roadmap
-
+* Error handling
+* complet translated to english
+* 
 
 ## License
 

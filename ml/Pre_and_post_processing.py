@@ -19,6 +19,21 @@ def convert_hours(features: pd.DataFrame):
     return hours, features
 
 
+def convert_days(features: pd.DataFrame):
+    days = features['Tag']
+
+    def convert_day(day):
+        date = datetime.datetime.strptime(day, "%Y-%m-%d")
+        date_delta = date - datetime.datetime(1900, 1, 1)
+        days_delta = date_delta.days
+        return days_delta
+
+    days_dif = map(convert_day, features['Tag'].tolist())
+    days_dif = list(days_dif)
+    features['Tag'] = days_dif
+    return days, features
+
+
 def rank(features: pd.DataFrame):
     rownames = features.index.values.tolist()
     new_names = []

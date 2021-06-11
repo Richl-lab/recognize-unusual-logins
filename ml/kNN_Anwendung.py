@@ -16,6 +16,9 @@ def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path)
     if "Stunde" in columns:
         hours, features = pp.convert_hours(features)
 
+    if "Tag" in columns:
+        days, features = pp.convert_days(features)
+
     if not load_model:
         # Erstellen des Models IF mit den Hyperparametern
         model = KNN(contamination=0.0001, n_neighbors=20, method="mean", algorithm="ball_tree", n_jobs=cores)
@@ -38,6 +41,9 @@ def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path)
 
     if "Stunde" in columns:
         features['Stunde'] = hours
+
+    if "Tag" in columns:
+        features['Tag'] = days
 
     # Anomalien in die Ausgabe schreiben
     if not rank:

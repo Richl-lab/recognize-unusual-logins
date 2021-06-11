@@ -18,6 +18,9 @@ def isolationforest_exec(source_path, path, cores, rank, load_model, save_model,
     if "Stunde" in columns:
         hours, features = pp.convert_hours(features)
 
+    if "Tag" in columns:
+        days, features = pp.convert_days(features)
+
     if not load_model:
         # Erstellen des Models IF mit den Hyperparametern
         model = IsolationForest(n_estimators=50, max_samples='auto', contamination=float(0.0001), max_features=1.0,
@@ -39,6 +42,9 @@ def isolationforest_exec(source_path, path, cores, rank, load_model, save_model,
 
     if "Stunde" in columns:
         features['Stunde'] = hours
+
+    if "Tag" in columns:
+        features['Tag'] = days
 
     # Anomalien in die Ausgabe schreiben
     if not rank:

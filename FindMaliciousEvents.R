@@ -351,6 +351,7 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
   }
   #Stoppen des Clusters
   stopCluster(cl)
+  close(fortschritt)
   
   #Gibt den Features die Namen
   colnames(features)<-feature_namens
@@ -532,6 +533,12 @@ isolationforest<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_mode
 kNN<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
   source_python(paste(Input_Pfad,"ml/kNN_Anwendung.py",sep=""))
   knn_exec(paste(Input_Pfad,"ml/",sep=""),Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+}
+
+#Führt die Python Funktion mit dem DAGMM aus
+dagmm<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
+  source_python(paste(Input_Pfad,"ml/DAGMM_Anwendung.py",sep=""))
+  dagmm_exec(paste(Input_Pfad,"ml/",sep=""),Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Nutzt einen Random Forest um Nutzer/hosts/Quell-IPs die viele Gruppen besuchen als ungewöhnlich einzustuffen
@@ -784,6 +791,7 @@ help_output<-function(){
         "-m        Choose one of the given machine learning algorithm for evaluation, default is an isolation forest",
         "          IF Isolation forest",
         "          kNN k-nearest-neigbhour",
+        "          DAGMM Deep Autoencoding Gausian Mixture Model",
         "          RF Randomforest",
         "-p        Use this to limit your cores to use. The next argument should be the logical count of cores to use, default is cores-1",
         "-r        The output will be a complet ranked list",
@@ -855,11 +863,13 @@ main<-function(args,file){
       if(length(args[grep("-m",as.character(args))+1])!=1){
         stop("Wähle einer der Optionen für das machine learning (IF,kNN,RF)",.call=F)
       }else{
-        if(as.character(args[grep("-m",as.character(args))+1])=="IF" ||as.character(args[grep("-m",as.character(args))+1])=="kNN" ||as.character(args[grep("-m",as.character(args))+1])=="RF"){
+        if(as.character(args[grep("-m",as.character(args))+1])=="IF" ||as.character(args[grep("-m",as.character(args))+1])=="kNN" || as.character(args[grep("-m",as.character(args))+1])=="DAGMM" || as.character(args[grep("-m",as.character(args))+1])=="RF"){
           if(as.character(args[grep("-m",as.character(args))+1])=="IF"){
             ml<-"IF"
           }else if(as.character(args[grep("-m",as.character(args))+1])=="kNN"){
             ml<-"kNN"
+          }else if(as.character(args[grep("-m",as.character(args))+1])=="DAGMM"){
+            ml<-"DAGMM"
           }else{
             ml<-"RF"
             gruppieren<-F
@@ -1097,12 +1107,14 @@ main<-function(args,file){
     }
     
     absoluter_pfad<-location_script(file)
-    if(ml=="IF" || ml=="kNN"){
+    if(ml=="IF" || ml=="kNN" || ml=="DAGMM"){
       setup_python(absoluter_pfad)
       if(ml=="IF"){
         isolationforest(absoluter_pfad,Pfad,cores,rank,load_model,save_model,model_path)
-      }else{
+      }else if(ml=="kNN"){
         kNN(absoluter_pfad,Pfad,cores,rank,load_model,save_model,model_path)
+      }else{
+        dagmm(absoluter_pfad,Pfad,cores,rank,load_model,save_model,model_path)
       }
     }else{
       randomforest(features,Sicht,Time_bin,cores,Pfad,load_model,model_path,save_model)

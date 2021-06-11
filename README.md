@@ -62,8 +62,8 @@ Find unusual logins from a existing feature set, that was create with this softw
    ```
 ## Roadmap
 * Error handling
-* complet translated to english
-* 
+* Complety translated to english
+* DAGMM
 
 ## License
 

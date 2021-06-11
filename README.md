@@ -31,8 +31,15 @@ Configuration:
 * link to the FindMaliciousEvents program
 * create ~/.R directory for r site-packages
 
+## Login Data
+The data needs the following structure:
+| Event ID        | Host           | Time  | Logon ID        | User           | Source  | Source Port           | Logon Type  |
+| ------------- |:-------------:| :-----:| :------------- |:-------------:| :-----:|:-------------:| -----:|
+| Integer      | Numeric | Date | Numeric(hex)     | Numeric | Numeric | Integer| Integer |
+| 4624     | 1112223      | "2021-06-01 00:00:02" | 0x233eef      | 33339993 | 3333888 | 0 | 2 |
+
 ## Usage
-After the R Script should be executable:
+After usage the r script should be executable:
    ```sh
    FindMaliciousEvents [File location] [Directory to save] [Options]
    ```
@@ -41,18 +48,20 @@ For more information and options see:
    FindMaliciousEvents --help
    ```
 ### Examples
-Find Unusual Logins from 2021-06-01 to 2021-07-01:
+Find unusual logins from 2021-06-01 to 2021-07-01:
    ```sh
    FindMaliciousEvents raw_data.csv . -d m 2021-06-01 2021-07-01
    ```
-Find Unusual Logins with the use of kNN and rank it:
+Find unusual logins with the use of kNN and rank it:
    ```sh
    FindMaliciousEvents raw_data.csv . -m kNN -r
    ```
-Find Unusual Logins from a existing feature set, that was create with this software:
+Find unusual logins from a existing feature set, that was create with this software:
    ```sh
    FindMaliciousEvents features.csv . -e
    ```
+## Roadmap
+
 
 ## License
 
@@ -63,5 +72,7 @@ Richard Mey
 * Company:richard.mey@syss.de
 
 Project Link/Location:
+
+## Acknowledgements
 
 

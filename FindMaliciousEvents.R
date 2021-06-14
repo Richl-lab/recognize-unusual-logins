@@ -65,6 +65,7 @@ load_packages<-function(){
   #Options
   options(lubridate.week.start=1) #Wochentag beginnt Montag
   options("scipen" = 10) #Große Zahlen werden vollständig dargestellt
+  Sys.timezone("UTC")
 }
 
 #Dadurch das innerhalb des setups das Script als Linkdatei verfügbar gemacht wird, muss der Vollständige Pfad zu dessem Order ermittelt werden
@@ -197,11 +198,11 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
   }
   
   Stunde<-function(i,...){
-    return(as_hms(((i+1)%%24)*60*60) )
+    return(as_hms(((i)%%24)*60*60) )
   }
   
   Tag<-function(startdatum,i,...){
-    return(as_date((as.Date(startdatum) %m+% hours((i+1)))))
+    return(as_date((as.Date(startdatum) %m+% hours((i)))))
   }
   
   Anzahl_Events<-function(data_user,...){
@@ -254,13 +255,11 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
   }else if(Time_bin=="h"){
     feature_funktionen<-append(feature_funktionen,Stunde)
     feature_namens<-append(feature_namens,"Stunde")
-    i<--1
     zeitfenster<-hours
   }else{
     feature_funktionen<-append(feature_funktionen,Tag)
     feature_funktionen<-append(feature_funktionen,Stunde)
     feature_namens<-append(feature_namens,c("Tag","Stunde"))
-    i<--1
     zeitfenster<-hours
   }
   
@@ -345,7 +344,7 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
     }
     
     #Abbruchbedingung
-    if((as.Date(startdatum)%m+% zeitfenster(i))==as.Date(enddatum)){
+    if((as_datetime(startdatum)%m+% zeitfenster(i+1))==as_datetime(enddatum)){
       break
     }
     i<-i+1
@@ -646,10 +645,16 @@ visualisierung_ergebnisse<-function(features,Output_Pfad,NOT_RF,rank){
     if(NOT_RF==T){
       outsider<-grep(paste("^X",iter[i,1],"(\\.[0-9]+$){0,1}",sep=""),ergebnisse[,1],value=T)
       insider<-grep(paste("^X",iter[i,1],"(\\.[0-9]+$){0,1}",sep=""),rownames(features),value=T) 
+      if(length(insider)>50){
+        insider<-sample(insider,50)
+      }
       cols <- character(length(insider))
     }else{
       insider<-features[(features$Identifier==iter[i,1]),]
       outsider<-""
+      if(nrow(insider)>50){
+        insider<-insider[sample(1:nrow(insider),50),]
+      }
       cols <- character(nrow(insider))
     }
       insider<-subset(insider,!(insider %in% outsider))

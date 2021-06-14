@@ -63,7 +63,7 @@ Find unusual logins from a existing feature set, that was create with this softw
 ## Roadmap
 * Error handling
 * Complety translated to english
-* DAGMM
+* DAGMM save and load
 
 ## License
 

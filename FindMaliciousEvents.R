@@ -104,7 +104,7 @@ einlesen<-function(Pfad,Output_Pfad){
       
       #Wenn die Rohdatei mind. 40% des Memorys belegn würde, wird die Datei teilweise eingelesen
       if(size>=mem*0.5){
-          cat("The specified file is too large, hence the read-in/ preprocessing/ feature extraction will be splited. This process might take more time.")
+          cat("The specified file is too large, hence the read-in/ preprocessing/ feature extraction will be splited. This process might take more time.",fill=2)
           split<-T
           #Damit die Features vollständig bleiben, wird die Orginal Datei nach der Zeit sortiert
           system(paste("sort -k3 -t, ",Pfad, " >> ", Output_Pfad,"time_sort.csv",sep=""))
@@ -313,7 +313,7 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
   
   #Anlegen eines Fortschrittsbalken, dieser entspricht der Menge an zu bearbeitenden Daten
   zeilen<-nrow(data[(data$Time >=(as.Date(startdatum)) & (data$Time <(as.Date(enddatum)))),])
-  fortschritt<-txtProgressBar(max=zeilen,width = 100,style = 3)
+  fortschritt<-txtProgressBar(min=0, max=zeilen,width = 100,style = 3, char="=", file=stderr(),title="Feature extraction:")
   bearbeitet<-0
   
   #Durchäuft anschlißend abhängig von der Zeiteinheit jeden Tag/Stunde bis zur Abbruchbedingung
@@ -340,7 +340,8 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
       
       #Erhöht die bereits durch itertriten Datensätze & gibt es aus
       bearbeitet<-bearbeitet+nrow(window)
-      setTxtProgressBar(fortschritt,bearbeitet) 
+      setTxtProgressBar(fortschritt,bearbeitet,title="Feature extraction:") 
+      flush.console()
     }
     
     #Abbruchbedingung
@@ -526,19 +527,19 @@ setup_python<-function(Pfad){
 #Führt das Python Funktion mit dem Isolationsbaum aus
 isolationforest<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
   source_python(paste(Input_Pfad,"ml/IsolationForest_Anwendung.py",sep=""))
-  isolationforest_exec(paste(Input_Pfad,"ml/",sep=""),Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+  isolationforest_exec(Input_Pfad,Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Führt die Python Funktion mit dem kNN aus
 kNN<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
   source_python(paste(Input_Pfad,"ml/kNN_Anwendung.py",sep=""))
-  knn_exec(paste(Input_Pfad,"ml/",sep=""),Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+  knn_exec(Input_Pfad,Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Führt die Python Funktion mit dem DAGMM aus
 dagmm<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
   source_python(paste(Input_Pfad,"ml/DAGMM_Anwendung.py",sep=""))
-  dagmm_exec(paste(Input_Pfad,"ml/",sep=""),Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+  dagmm_exec(Input_Pfad,Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Nutzt einen Random Forest um Nutzer/hosts/Quell-IPs die viele Gruppen besuchen als ungewöhnlich einzustuffen

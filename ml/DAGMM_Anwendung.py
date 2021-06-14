@@ -1,5 +1,8 @@
 # https://github.com/tnakae/DAGMM/blob/master/Example_DAGMM.ipynb
 def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_path):
+    import sys
+    sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
+    sys.path.insert(1, source_path + "ml/")
     import tensorflow as tf
     import numpy as np
     import pandas as pd
@@ -8,8 +11,6 @@ def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_pat
     from dagmm import DAGMM
 
     # https://stackoverflow.com/questions/4383571/importing-files-from-different-folder
-    import sys
-    sys.path.insert(1, source_path)
     import Pre_and_post_processing as pp
 
     # Einlesen der Features
@@ -22,7 +23,7 @@ def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_pat
     groups = pd.get_dummies(features[["Identifier"]])
     features = features.drop(["Identifier"], axis=1)
     features = pd.concat([features.reset_index(drop=True), groups.reset_index(drop=True)], axis=1)
-    features.set_index(rownames)
+    features = features.set_index(rownames)
 
     if "Stunde" in columns:
         hours, features = pp.convert_hours(features)
@@ -30,9 +31,11 @@ def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_pat
     if "Tag" in columns:
         days, features = pp.convert_days(features)
 
+    column_width = len(features.columns)
+
     model_dagmm = DAGMM(
         comp_hiddens=[23, 16, 8, 4, 2], comp_activation=tf.nn.tanh,
-        est_hiddens=[26, 13], est_activation=tf.nn.tanh, est_dropout_ratio=0.25,
+        est_hiddens=[16, 8, 4], est_activation=tf.nn.tanh, est_dropout_ratio=0.25,
         epoch_size=2500, minibatch_size=512, random_seed=123
     )
 
@@ -56,4 +59,3 @@ def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_pat
     else:
         res = pp.rank(features)
         res.to_csv(path + 'Ergebnisse.csv')
-

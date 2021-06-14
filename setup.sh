@@ -26,7 +26,7 @@ then
 	#Aktiviert die Umgebung
 	source maliciousevents/bin/activate
 	#Installiert wheel, ist vorher notwendig um wheels für sklearn&pyod zu erstellen
-	pip install wheel==0.36.2
+	pip3 install wheel==0.36.2
 	
 	#Installiert die Python Bibliotheken, wenn das requirements file verfügbar ist
 	if [ $(ls -al | grep -c "requirements.txt") -eq 0 ];
@@ -36,7 +36,9 @@ then
 	else
 		python3 -m pip install -r ./requirements.txt
 	fi
-	
+
+	cp -r ./lib/. ./maliciousevents/lib/python3.8/site-packages/
+
 	#Deaktiviert die Virtuelle Umgebung wieder
 	deactivate
 	

@@ -1,12 +1,13 @@
 # Funktionsdefinition für den knn mit Ausgabepfad+Anzahl an Kernen
 def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path):
     # Laden der nötigen Bibliotheken
+    import sys
+    sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
+    sys.path.insert(1, source_path+"ml/")
     import pandas as pd
     from pyod.models.knn import KNN
     from joblib import dump, load
     # https://stackoverflow.com/questions/4383571/importing-files-from-different-folder
-    import sys
-    sys.path.insert(1, source_path)
     import Pre_and_post_processing as pp
 
     # Einlesen der Features

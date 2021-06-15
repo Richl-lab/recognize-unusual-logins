@@ -88,6 +88,7 @@ Richard Mey
 * Company:richard.mey@syss.de
 
 Project Link/Location:
+
 [Github Repository](https://github.com/Richl-lab/recognize-unusual-logins#acknowledgements)
 
 ## Acknowledgements

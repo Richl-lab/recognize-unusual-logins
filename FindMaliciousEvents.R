@@ -65,7 +65,8 @@ load_packages<-function(){
   #Options
   options(lubridate.week.start=1) #Wochentag beginnt Montag
   options("scipen" = 10) #Große Zahlen werden vollständig dargestellt
-  Sys.timezone("UTC")
+  #Sys.timezone()
+  Sys.setenv(TZ='UTC')
 }
 
 #Dadurch das innerhalb des setups das Script als Linkdatei verfügbar gemacht wird, muss der Vollständige Pfad zu dessem Order ermittelt werden
@@ -186,7 +187,7 @@ vorverarbeiten<-function(data){
 }
 
 #Extraktion der Features
-feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split=F,gruppieren=T,load_model,model_path,save_model,Pfad){
+feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split=F,gruppieren=T,load_model,model_path,save_model,Pfad,Time_bin_size){
   
   #Zuerst werden alle Funktionen zur Features Extraktion definiert
   Identifier<-function(data_user,Sicht,...){
@@ -310,6 +311,8 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
     data<-data[(is.na(data$Source)!=T),]
   }
   
+  cat("Please magnify the window big enough to present the progress bar completly.",fill=2)
+  
   #Anlegen eines Fortschrittsbalken, dieser entspricht der Menge an zu bearbeitenden Daten
   zeilen<-nrow(data[(data$Time >=(as.Date(startdatum)) & (data$Time <(as.Date(enddatum)))),])
   fortschritt<-txtProgressBar(min=0, max=zeilen,width = 100,style = 3, char="=", file=stderr(),title="Feature extraction:")
@@ -318,7 +321,7 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
   #Durchäuft anschlißend abhängig von der Zeiteinheit jeden Tag/Stunde bis zur Abbruchbedingung
   repeat{
     #Extrahiert alle Daten in dem Zeitraum
-    window<-data[(data$Time >=(as_datetime(startdatum) %m+% zeitfenster(i)) & (data$Time <(as_datetime(startdatum)%m+% zeitfenster(i+1)))),]
+    window<-data[(data$Time >=(as_datetime(startdatum) %m+% zeitfenster(i)) & (data$Time <(as_datetime(startdatum)%m+% zeitfenster(i+1+Time_bin_size)))),]
     #Falls es leer ist ->überspringe
     if(nrow(window)>0){
       #Extrahiert je nach Scihtweise und duplikatslos die Nutzer/Hosts/Quell-IPs
@@ -344,10 +347,10 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
     }
     
     #Abbruchbedingung
-    if((as_datetime(startdatum)%m+% zeitfenster(i+1))==as_datetime(enddatum)){
+    if((as_datetime(startdatum)%m+% zeitfenster(i+1+Time_bin_size))>=as_datetime(enddatum)){
       break
     }
-    i<-i+1
+    i<-i+1+Time_bin_size
   }
   #Stoppen des Clusters
   stopCluster(cl)
@@ -788,6 +791,7 @@ help_output<-function(){
         "          h Hour",
         "          d Day",
         "          dh Day&Hour",
+        "             default is one hour for h&dh, write a number of hours behind it to change it",
         "-d        Choose a start- and enddate, default is a quantile",
         "          m Manual establishing",
         "            startdate Y-M-D",
@@ -891,12 +895,28 @@ main<-function(args,file){
         stop("Wähle einer der Optionen für die Zeitblöcke (d,h,dh)",.call=F)
       }else{
         if(as.character(args[grep("-t",as.character(args))+1])=="h" ||as.character(args[grep("-t",as.character(args))+1])=="d" ||as.character(args[grep("-t",as.character(args))+1])=="dh"){
-          if(as.character(args[grep("-t",as.character(args))+1])=="h"){
-            Time_bin<-"h"
-          }else if(as.character(args[grep("-t",as.character(args))+1])=="d"){
+          if(as.character(args[grep("-t",as.character(args))+1])=="d"){
             Time_bin<-"d"
+            Time_bin_size<-0
           }else{
-            Time_bin<-"dh"
+            if(as.character(args[grep("-t",as.character(args))+1])=="h"){
+              Time_bin<-"h" 
+            }else{
+              Time_bin<-"dh"
+            }
+            
+            if(length(args[grep("-t",as.character(args))+2])!=1){
+              if(length(grep("^[0-9]*$",as.character(args[grep("-t",as.character(args))+2])))!=0){
+                Time_bin_size<-as.numeric(args[grep("-t",as.character(args))+2])-1
+                if(Time_bin_size<0 || Time_bin_size >71){
+                  stop("Please insert a number of hours bigger then 0 and smaller then 73.",.call=F)
+                }
+              }else{
+                stop("Please insert a number behind the hour/day-hour time bin format.",.call=F)
+              }
+            }else{
+              Time_bin_size<-0
+            }
           }
         }else{
           stop("Wähle einer der gültigten Optionen für die Zeitblöcke (d,h,dh)",.call=F)
@@ -1011,7 +1031,7 @@ main<-function(args,file){
           }
         }
         
-        features<-feature_extraktion(data,startdatum,enddatum,Sicht,Time_bin,cores,gruppieren = gruppieren,load_model = load_model,Pfad = Pfad,save_model = save_model,model_path = model_path)
+        features<-feature_extraktion(data,startdatum,enddatum,Sicht,Time_bin,cores,gruppieren = gruppieren,load_model = load_model,Pfad = Pfad,save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size)
         write.csv(features,paste(Pfad,"Features.csv",sep = ""))
       }else{
         fertig<-F
@@ -1091,7 +1111,7 @@ main<-function(args,file){
               })
               back<-10000000-(nrow(data))
               data<-vorverarbeiten(data)
-              features_new<-feature_extraktion(data,startdatum_man,enddatum_man,Sicht,Time_bin,cores,split=T,load_model = load_model,Pfad = Pfad, save_model = save_model,model_path = model_path)
+              features_new<-feature_extraktion(data,startdatum_man,enddatum_man,Sicht,Time_bin,cores,split=T,load_model = load_model,Pfad = Pfad, save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size)
               features<-rbind(features,features_new)
             }
             rm(data)

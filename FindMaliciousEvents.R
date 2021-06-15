@@ -822,7 +822,8 @@ help_output<-function(){
         "-p        Use this to limit your cores to use. The next argument should be the logical count of cores to use, default is cores-1",
         "-r        The output will be a complet ranked list",
         "-s        Save the trained model",
-        "-lm       The next argument should be the path to the directory with the trained model information",fill=2)
+        "-lm       The next argument should be the path to the directory with the trained model information",
+        "-n        Plots will not be generated", fill=2)
 }
 
 #################
@@ -993,6 +994,12 @@ main<-function(args,file){
       save_model<-F
     }
     
+    
+    if(length(grep("-n",as.character(args)))!=0){
+      with_plots<-F
+    }else{
+      with_plots<-T
+    }
 
     #unix::rlimit_as(1e12, 1e12)
     
@@ -1164,7 +1171,11 @@ main<-function(args,file){
     }else{
       randomforest(features,Sicht,Time_bin,cores,Pfad,load_model,model_path,save_model)
     }
-    visualisierung_ergebnisse(features,Pfad,gruppieren,rank)
+    
+    if(with_plots){
+      visualisierung_ergebnisse(features,Pfad,gruppieren,rank) 
+    }
+    
     system("clear")
     }
 

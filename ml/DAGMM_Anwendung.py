@@ -34,7 +34,7 @@ def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_pat
     column_width = len(features.columns)
 
     model_dagmm = DAGMM(
-        comp_hiddens=[23, 16, 8, 4, 2], comp_activation=tf.nn.tanh,
+        comp_hiddens=[column_width, int(0.75*column_width), int(0.5*column_width), 4, 2], comp_activation=tf.nn.tanh,
         est_hiddens=[16, 8, 4], est_activation=tf.nn.tanh, est_dropout_ratio=0.25,
         epoch_size=2500, minibatch_size=512, random_seed=123
     )

@@ -50,6 +50,8 @@ The data needs the following structure:
 | Integer      | Numeric | Date | Numeric(hex)     | Numeric | Numeric | Integer| Integer |
 | 4624     | 1112223      | "2021-06-01 00:00:02" | 0x233eef      | 33339993 | 3333888 | 0 | 2 |
 
+Users with smaller numbers then 10000 will be removed, because they are interpreted as Well-Known-SIDs. The Software was tested with anonymized Users, Hosts and Sources so there is no guarantee that it works without that.
+
 ## Usage
 After usage the r script should be executable:
    ```sh
@@ -86,6 +88,7 @@ Richard Mey
 * Company:richard.mey@syss.de
 
 Project Link/Location:
+[Github Repository](https://github.com/Richl-lab/recognize-unusual-logins#acknowledgements)
 
 ## Acknowledgements
 

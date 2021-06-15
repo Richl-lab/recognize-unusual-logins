@@ -187,7 +187,7 @@ vorverarbeiten<-function(data){
 }
 
 #Extraktion der Features
-feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split=F,gruppieren=T,load_model,model_path,save_model,Pfad,Time_bin_size){
+feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split=F,gruppieren=T,load_model,model_path,save_model,Pfad,Time_bin_size,days_instead){
   
   #Zuerst werden alle Funktionen zur Features Extraktion definiert
   Identifier<-function(data_user,Sicht,...){
@@ -204,6 +204,10 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
   
   Tag<-function(startdatum,i,...){
     return(as_date((as.Date(startdatum) %m+% hours((i)))))
+  }
+  
+  Tag_2<-function(startdatum,i,...){
+    return(as_date((as.Date(startdatum) %m+% days((i)))))
   }
   
   Anzahl_Events<-function(data_user,...){
@@ -250,8 +254,13 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
   i<-0
   #Außerdem wird stehts mindestens ein zeit Format genutzt
   if(Time_bin=="d"){
-    feature_funktionen<-append(feature_funktionen,Wochentag)
-    feature_namens<-append(feature_namens,"Wochentag")
+    if(days_instead){
+      feature_funktionen<-append(feature_funktionen,Tag_2)
+      feature_namens<-append(feature_namens,"Tag")
+    }else{
+      feature_funktionen<-append(feature_funktionen,Wochentag)
+      feature_namens<-append(feature_namens,"Wochentag") 
+    }
     zeitfenster<-days
   }else if(Time_bin=="h"){
     feature_funktionen<-append(feature_funktionen,Stunde)
@@ -804,10 +813,11 @@ help_output<-function(){
         "          h Host   From a hosts point of view",
         "          s Source From a source point of view",
         "-t        Specification of the time slot with the following argument, default is day",
-        "          h Hour",
         "          d Day",
+        "            d Use days instead of weakdays",
+        "          h Hour",
         "          dh Day&Hour",
-        "             default is one hour for h&dh, write a number of hours behind it to change it",
+        "             default is one hour for h&dh, write a number of hours as next argument it to change it",
         "-d        Choose a start- and enddate, default is a quantile",
         "          m Manual establishing",
         "            startdate Y-M-D",
@@ -864,6 +874,7 @@ main<-function(args,file){
     Sicht<-4
     Time_bin<-"d"
     Time_bin_size<-0
+    days_instead<-F
     write_features<-F
     
     if(length(grep("-p",as.character(args)))!=0){
@@ -915,6 +926,13 @@ main<-function(args,file){
         if(as.character(args[grep("-t",as.character(args))+1])=="h" ||as.character(args[grep("-t",as.character(args))+1])=="d" ||as.character(args[grep("-t",as.character(args))+1])=="dh"){
           if(as.character(args[grep("-t",as.character(args))+1])=="d"){
             Time_bin<-"d"
+            if(length(args[grep("-t",as.character(args))+2])!=0){
+              if(as.character(args[grep("-t",as.character(args))+2])=="d"){
+                days_instead<-T
+              }else{
+                stop("The only option you can use here is d.",.call=F)
+              }
+            }
           }else{
             if(as.character(args[grep("-t",as.character(args))+1])=="h"){
               Time_bin<-"h" 
@@ -1057,7 +1075,7 @@ main<-function(args,file){
           }
         }
         
-        features<-feature_extraktion(data,startdatum,enddatum,Sicht,Time_bin,cores,gruppieren = gruppieren,load_model = load_model,Pfad = Pfad,save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size)
+        features<-feature_extraktion(data,startdatum,enddatum,Sicht,Time_bin,cores,gruppieren = gruppieren,load_model = load_model,Pfad = Pfad,save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size,days_instead=days_instead)
         write.csv(features,paste(Pfad,"Features.csv",sep = ""))
       }else{
         fertig<-F
@@ -1137,7 +1155,7 @@ main<-function(args,file){
               })
               back<-10000000-(nrow(data))
               data<-vorverarbeiten(data)
-              features_new<-feature_extraktion(data,startdatum_man,enddatum_man,Sicht,Time_bin,cores,split=T,load_model = load_model,Pfad = Pfad, save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size)
+              features_new<-feature_extraktion(data,startdatum_man,enddatum_man,Sicht,Time_bin,cores,split=T,load_model = load_model,Pfad = Pfad, save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size,days_instead=days_instead)
               features<-rbind(features,features_new)
             }
             rm(data)

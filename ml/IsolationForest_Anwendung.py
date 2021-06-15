@@ -33,12 +33,20 @@ def isolationforest_exec(source_path, path, cores, rank, load_model, save_model,
     else:
         model = load(model_path+'model.joblib')
 
+        if str(type(model)) != "<class 'sklearn.ensemble._iforest.IsolationForest'>":
+            print("Use the correct model on load with the correct machine learning option.")
+            sys.exit(1)
+
     if save_model:
         dump(model, path + 'model/' + 'model.joblib')
 
     # Vorhersage/Auslesen des Scores und ob es dadurch einer Anomaly entspricht
-    features['scores'] = model.decision_function(features[columns])
-    features['anomaly'] = model.predict(features[columns])
+    try:
+        features['scores'] = model.decision_function(features[columns])
+        features['anomaly'] = model.predict(features[columns])
+    except:
+        print("The features of the data should be the same like the model features.")
+        sys.exit(1)
     # Sortieren nach Score
     features = features.sort_values(by=['scores'], ascending=True)
 

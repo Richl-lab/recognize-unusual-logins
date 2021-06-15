@@ -3,7 +3,7 @@ def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path)
     # Laden der nötigen Bibliotheken
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
-    sys.path.insert(1, source_path+"ml/")
+    sys.path.insert(1, source_path + "ml/")
     import pandas as pd
     from pyod.models.knn import KNN
     from joblib import dump, load
@@ -30,12 +30,21 @@ def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path)
     else:
         model = load(model_path + 'model.joblib')
 
+        if str(type(model)) != "<class 'pyod.models.knn.KNN'>":
+            print("Use the correct model on load with the correct machine learning option.")
+            sys.exit(1)
+
     if save_model:
         dump(model, path + 'model/' + 'model.joblib')
 
     # Vorhersage/Auslesen des Scores und ob es dadurch einer Anomaly entspricht
-    pred = model.labels_
-    scores = model.decision_scores_
+    try:
+        pred = model.labels_
+        scores = model.decision_scores_
+    except:
+        print("The features of the data should be the same like the model features.")
+        sys.exit(1)
+
     features['anomaly'] = pred
     features['scores'] = scores
     # Sortieren nach Score

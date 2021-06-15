@@ -551,6 +551,16 @@ randomforest<-function(features,Sicht,Time_bin,cores,Pfad,load_model,model_path,
   
   if(load_model){
     model<-readRDS(paste(model_path,"model.rds",sep=""))
+    tryCatch(
+      expr = {
+        model_type=attr(model$forest,"class")
+        if(model_type!="ranger.forest"){
+          stop("Use the correct model on load with the correct machine learning option.",.call=F)
+        }
+      }, error = function(e){
+        stop("Use the correct model on load with the correct machine learning option.",.call=F)
+      }
+    )
   }else{
     #Teilt die Mittelwertdaren in Train- und Testdaten
     train<-means_label[sample(1:nrow(means_label),nrow(means_label)*0.7),]
@@ -605,11 +615,17 @@ randomforest<-function(features,Sicht,Time_bin,cores,Pfad,load_model,model_path,
   }
   
   if(save_model){
-    saveRDS(model,paste(Pfad,"model.rds",sep=""))
+    saveRDS(model,paste(Pfad,"model/","model.rds",sep=""))
   }
   
   #Prediction auf den echten Feature Datensatz
-  preds <- predict(model, data=features[,c(colnames(means_label[-c(ncol(means_label))]))],type="response")
+  tryCatch(
+    expr = {
+      preds <- predict(model, data=features[,c(colnames(means_label[-c(ncol(means_label))]))],type="response")
+    }, error = function(e){
+      stop("The features of the data should be the same like the model features.",.call=F)
+    }
+  )
   #Neues DataFrame mit kennung+Gruppe
   Identifier_Gruppe<-data.frame(Identifier=features[,1],Gruppe=as.factor(preds$predictions))
   
@@ -795,7 +811,7 @@ help_output<-function(){
         "-d        Choose a start- and enddate, default is a quantile",
         "          m Manual establishing",
         "            startdate Y-M-D",
-        "            enddate   Y-M-D",
+        "            enddate   Y-M-D, is not included",
         "          v Complet span",
         "-e        If you are already got an extracted feature set, you can use it instead of the data file",
         "-m        Choose one of the given machine learning algorithm for evaluation, default is an isolation forest",
@@ -846,6 +862,7 @@ main<-function(args,file){
     
     Sicht<-4
     Time_bin<-"d"
+    Time_bin_size<-0
     write_features<-F
     
     if(length(grep("-p",as.character(args)))!=0){
@@ -897,7 +914,6 @@ main<-function(args,file){
         if(as.character(args[grep("-t",as.character(args))+1])=="h" ||as.character(args[grep("-t",as.character(args))+1])=="d" ||as.character(args[grep("-t",as.character(args))+1])=="dh"){
           if(as.character(args[grep("-t",as.character(args))+1])=="d"){
             Time_bin<-"d"
-            Time_bin_size<-0
           }else{
             if(as.character(args[grep("-t",as.character(args))+1])=="h"){
               Time_bin<-"h" 
@@ -915,7 +931,6 @@ main<-function(args,file){
                 stop("Please insert a number behind the hour/day-hour time bin format.",.call=F)
               }
             }else{
-              Time_bin_size<-0
             }
           }
         }else{
@@ -959,6 +974,10 @@ main<-function(args,file){
         }
         if(file.exists(paste(model_path,"cluster.rds",sep=""))==F || file.exists(paste(model_path,"min_max.rds",sep=""))==F || (file.exists(paste(model_path,"model.joblib",sep=""))==F && file.exists(paste(model_path,"model.rds",sep=""))==F) ){
           stop("Hand over a directory that contains the following content: min_max.rds, cluster.rds, model.(rds/joblib)",.call=F)
+        }
+        
+        if((file.exists(paste(model_path,"model.rds",sep=""))==F && ml=="RF") || (file.exists(paste(model_path,"model.rds",sep=""))==T && (ml=="IF" || ml=="kNN"))){
+          stop("Use the correct model on load with the correct machine learning option.",.call=F)
         }
         load_model<-T
       }

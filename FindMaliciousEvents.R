@@ -4,7 +4,7 @@
 # Modul:            Praxis-/Bachelorprojekt
 # Thema:            Detect Malicious Login Events
 # Autorenschaft:    Richard Mey <richard.mey@syss.de>
-# Stand:            09.06.2021
+# Stand:            16.06.2021
 
 ###############
 # Bemerkungen #
@@ -28,7 +28,7 @@ file <- commandArgs()
 # Setup #
 #########
 
-#Legt den Pfad zu den Librarys fest
+#Legt den path zu den Librarys fest
 .libPaths("~/.R")
 #Funktion zum installieren/laden aller nötigen Pakete
 load_packages<-function(){
@@ -69,9 +69,9 @@ load_packages<-function(){
   Sys.setenv(TZ='UTC')
 }
 
-#Dadurch das innerhalb des setups das Script als Linkdatei verfügbar gemacht wird, muss der Vollständige Pfad zu dessem Order ermittelt werden
+#Dadurch das innerhalb des setups das Script als Linkdatei verfügbar gemacht wird, muss der Vollständige path zu dessem Order ermittelt werden
 location_script<-function(file){
-  #Extrahieren des Pfades zum Ort wo sich die Link Datei befindet
+  #Extrahieren des pathes zum Ort wo sich die Link Datei befindet
   file_loc<-sub("[^/]*$","",sub("--file=","",file[grep("--file=.*",file)]))
   if(substring(file_loc,1,1)=="."){
     path_exec<-system("pwd",intern=T)
@@ -79,15 +79,15 @@ location_script<-function(file){
   }else{
     link_path<-substring(file_loc,2)
   }
-  #Extrahieren des Realtiven Pfades von der Link Datei zum Orginal
+  #Extrahieren des Realtiven pathes von der Link Datei zum Orginal
   relativ_path<-Sys.readlink(paste("/",link_path,"FindMaliciousEvents",sep=""))
   #Zusammenfügen beider Informationen
   absolute_path<-paste("/",sub("\\.local/bin/","",link_path),sub("\\.\\./\\.\\./","",sub("FindMaliciousEvents.R$","",relativ_path)),sep="")
   return(absolute_path)
 }
 
-#Einlesen der Raw Daten
-einlesen<-function(Pfad,Output_Pfad){
+#read_in der Raw Daten
+read_in<-function(path,Output_path){
   #Da R die Datein in den memory ablegt und es bei zu großen Datein zu einem Crash führt, muss entschieden werden ob die Datei getrennt oder vollständig eingelesen wird
   #Auslesen des freien memorys
   mem<-system('free -m',intern=T)
@@ -95,12 +95,12 @@ einlesen<-function(Pfad,Output_Pfad){
   mem<-as.numeric(tail(mem[[2]],n=1))
 
   #Auslesen der Dateigröße
-  size<-as.numeric(file.info(Pfad)$size)
+  size<-as.numeric(file.info(path)$size)
 
   #Wenn das File keine csv ist oder nicht existiert wird das Programm abgebrochen
-    if(file_ext(Pfad)=="csv"){
+    if(file_ext(path)=="csv"){
       #Wenn keine Rechte bestehen die Datei auszulesen, wird das Programm abgebrochen
-      if(file.access(Pfad,2)==-1){
+      if(file.access(path,2)==-1){
         stop("Enter a file for which you got the rights to read.",.call=F)
       }
       
@@ -109,12 +109,12 @@ einlesen<-function(Pfad,Output_Pfad){
           cat("The specified file is too large, hence the read-in/ preprocessing/ feature extraction will be splited. This process might take more time.",fill=2)
           split<-T
           #Damit die Features vollständig bleiben, wird die Orginal Datei nach der Zeit sortiert
-          system(paste("sort -k3 -t, ",Pfad, " >> ", Output_Pfad,"time_sort.csv",sep=""))
+          system(paste("sort -k3 -t, ",path, " >> ", Output_path,"time_sort.csv",sep=""))
           return(split)
         }else{
           #Wenn die Datei kleiner als 40% des freien Memorys ist wird die Datei eingelesen
           tryCatch(expr={
-            data<-read.csv(Pfad,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
+            data<-read.csv(path,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
           }, error=function(e){
             stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
           },warning = function(w){
@@ -140,19 +140,19 @@ einlesen<-function(Pfad,Output_Pfad){
 }
 
 #Falls die Datei zu Groß ist wird diese in teile geteilt
-teil_einlesen<-function(Pfad,zeilen_multi,back){
+parted_read_in<-function(path,row_multi,back){
   tryCatch(expr = {
-    #Einlesen von x Zeilen und überspringe die vorher bearbeiteten
-    data_new<-read.csv(paste(Pfad,"time_sort.csv",sep=""),nrows = 10000000,skip=(zeilen_multi*10000000)-back,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
+    #read_in von x rows und überspringe die vorher bearbeiteten
+    data_new<-read.csv(paste(path,"time_sort.csv",sep=""),nrows = 10000000,skip=(row_multi*10000000)-back,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
     colnames(data_new)<-c("Event_ID","Host","Time","Logon_ID","User","Source","Source_Port","Logon_Type")#ActivityID oder LogonGUID
     data_new<-data_new[(data_new$Event_ID==4624),]
     return(data_new)
   }, error = function(e){
-    if(zeilen_multi==0){
+    if(row_multi==0){
       stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
     }else{
-      fertig<-T
-      return(fertig) 
+      finished<-T
+      return(finished) 
     }
   }, warning = function(w){
     stop("The file needs the following columns: Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.",.call=F)
@@ -160,13 +160,13 @@ teil_einlesen<-function(Pfad,zeilen_multi,back){
 }
 
 #Falls die Option -e angeben wurde können die Features, falls schon welche mit dem Programm extrahiert wurden, eingelesen werden 
-features_einlesen<-function(Pfad){
-  if(file_ext(Pfad)=="csv"){
-    if(file.access(Pfad,2)==-1){
+features_read_in<-function(path){
+  if(file_ext(path)=="csv"){
+    if(file.access(path,2)==-1){
       stop("Enter a file for which you got the rights to read.",.call=F)
     }
       tryCatch(expr = {
-        features<-read.csv(Pfad,row.names = 1)
+        features<-read.csv(path,row.names = 1)
         return(features)
       }, error = function(e){
         stop("Provide a valid, non-empty file.",.call=F)
@@ -180,34 +180,34 @@ features_einlesen<-function(Pfad){
 
 #Um redudante/unötigte Daten zu vermeiden, werden alle Nutzer, welche einer ganzen Zahl <=10000 entsprechen gelöscht
 #anschließend werden Duplikate gelöscht
-vorverarbeiten<-function(data){
+preprocessing<-function(data){
   data<-data[!(data$User %in% c(0:10000)),]
   data<-data%>% distinct(Event_ID,User,Host,Time,Source,Source_Port,Logon_Type)
   return(data)
 }
 
 #Extraktion der Features
-feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split=F,gruppieren=T,load_model,model_path,save_model,Pfad,Time_bin_size,days_instead){
+feature_extraction<-function(data,startdate,enddate,view,Time_bin,cores,split=F,gruppieren=T,load_model,model_path,save_model,path,Time_bin_size,days_instead){
   
   #Zuerst werden alle Funktionen zur Features Extraktion definiert
-  Identifier<-function(data_user,Sicht,...){
-    return(data_user[1,Sicht])
+  Identifier<-function(data_user,view,...){
+    return(data_user[1,view])
   }
   
-  Wochentag<-function(startdatum,i,...){
-    return(wday(ymd(as.Date(startdatum) %m+% days(i))))
+  Wochentag<-function(startdate,i,...){
+    return(wday(ymd(as.Date(startdate) %m+% days(i))))
   }
   
   Stunde<-function(i,...){
     return(as_hms(((i)%%24)*60*60) )
   }
   
-  Tag<-function(startdatum,i,...){
-    return(as_date((as.Date(startdatum) %m+% hours((i)))))
+  Tag<-function(startdate,i,...){
+    return(as_date((as.Date(startdate) %m+% hours((i)))))
   }
   
-  Tag_2<-function(startdatum,i,...){
-    return(as_date((as.Date(startdatum) %m+% days((i)))))
+  Tag_2<-function(startdate,i,...){
+    return(as_date((as.Date(startdate) %m+% days((i)))))
   }
   
   Anzahl_Events<-function(data_user,...){
@@ -230,82 +230,82 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
     }
   }
   
-  Hosts_per_X<-function(data_user,Sicht,...){
-    return((data_user%>% distinct(Host,X=.[[Sicht]]) %>%group_by(X)%>% summarise(n()))$`n()`)
+  Hosts_per_X<-function(data_user,view,...){
+    return((data_user%>% distinct(Host,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
   }
   
-  Sources_per_X<-function(data_user,Sicht,...){
-    return((data_user%>% distinct(Source,X=.[[Sicht]]) %>%group_by(X)%>% summarise(n()))$`n()`)
+  Sources_per_X<-function(data_user,view,...){
+    return((data_user%>% distinct(Source,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
   }
   
-  Users_per_X<-function(data_user,Sicht,...){
-    return((data_user%>% distinct(User,X=.[[Sicht]]) %>%group_by(X)%>% summarise(n()))$`n()`)
+  Users_per_X<-function(data_user,view,...){
+    return((data_user%>% distinct(User,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
   }
   
   
   #Definition, welche Funktionen zur Feature Extraktion dann genutzt werden & welche Namen sie besitzen
   #Dies dient dazu eine gewisse modulartät in den verschiedene Featuren zu schaffen
-  feature_funktionen<-c()
+  feature_function<-c()
   feature_namens<-c()
   
   #Es wird stehts ein Identifiziere mit genutzt
-  feature_funktionen<-append(feature_funktionen,Identifier)
+  feature_function<-append(feature_function,Identifier)
   feature_namens<-append(feature_namens,"Identifier")
   i<-0
   #Außerdem wird stehts mindestens ein zeit Format genutzt
   if(Time_bin=="d"){
     if(days_instead){
-      feature_funktionen<-append(feature_funktionen,Tag_2)
+      feature_function<-append(feature_function,Tag_2)
       feature_namens<-append(feature_namens,"Tag")
     }else{
-      feature_funktionen<-append(feature_funktionen,Wochentag)
+      feature_function<-append(feature_function,Wochentag)
       feature_namens<-append(feature_namens,"Wochentag") 
     }
     zeitfenster<-days
   }else if(Time_bin=="h"){
-    feature_funktionen<-append(feature_funktionen,Stunde)
+    feature_function<-append(feature_function,Stunde)
     feature_namens<-append(feature_namens,"Stunde")
     zeitfenster<-hours
   }else{
-    feature_funktionen<-append(feature_funktionen,Tag)
-    feature_funktionen<-append(feature_funktionen,Stunde)
+    feature_function<-append(feature_function,Tag)
+    feature_function<-append(feature_function,Stunde)
     feature_namens<-append(feature_namens,c("Tag","Stunde"))
     zeitfenster<-hours
   }
   
   
   #Anschließend werden die normalen Zähl Features eingeschlossen
-  feature_funktionen<-append(feature_funktionen,Anzahl_Events)
+  feature_function<-append(feature_function,Anzahl_Events)
   feature_namens<-append(feature_namens,"Anzahl_Events")
   
   Types<-list(2,3,9,10,c(11,12))
-  start_typ<-length(feature_funktionen)+1
+  start_typ<-length(feature_function)+1
   for(z in 1:5){
-    feature_funktionen<-append(feature_funktionen,Anteil_Event)
+    feature_function<-append(feature_function,Anteil_Event)
     feature_namens<-append(feature_namens,paste("Anteil",paste(as.character(unlist(Types[[z]])),collapse="_"),sep = "_"))
   }
   end_typ<-start_typ+5-1
-  feature_funktionen<-append(feature_funktionen,Events_per_Second)
+  feature_function<-append(feature_function,Events_per_Second)
   feature_namens<-append(feature_namens,"Events_per_Second")
   
-  #Anhand der Sichtweise werden dann die Sichtweise Features hinzugefügt, 2=Sicht Host, 4= Sicht Nutzer, 5= Sicht Quell-IP
-  if(Sicht==2){
-    feature_funktionen<-append(feature_funktionen,Users_per_X)
-    feature_funktionen<-append(feature_funktionen,Sources_per_X)
+  #Anhand der Sichtweise werden dann die Sichtweise Features hinzugefügt, 2=view Host, 4= view Nutzer, 5= view Quell-IP
+  if(view==2){
+    feature_function<-append(feature_function,Users_per_X)
+    feature_function<-append(feature_function,Sources_per_X)
     feature_namens<-append(feature_namens,c("Users_per_Host","Sources_per_Host"))
-  }else if(Sicht==4){
-    feature_funktionen<-append(feature_funktionen,Hosts_per_X)
-    feature_funktionen<-append(feature_funktionen,Sources_per_X)
+  }else if(view==4){
+    feature_function<-append(feature_function,Hosts_per_X)
+    feature_function<-append(feature_function,Sources_per_X)
     feature_namens<-append(feature_namens,c("Hosts_per_User","Sources_per_User"))
   }else{
-    feature_funktionen<-append(feature_funktionen,Users_per_X)
-    feature_funktionen<-append(feature_funktionen,Hosts_per_X)
+    feature_function<-append(feature_function,Users_per_X)
+    feature_function<-append(feature_function,Hosts_per_X)
     feature_namens<-append(feature_namens,c("Users_per_Source","Hosts_per_Source"))
   }
   
   #Aufgrund das bei der späteren Ausführung immer die selben Variablen übergeben werden müssen, aber eine modulare abhängigkeit besteht
   #wird eine liste identisch lang zu der Anzahl an Featuren erstellt mit den Informatione zu den Untersuchenden LoginTypen verwendet
-  Event_Typ<-rep(list(0),length(feature_funktionen))
+  Event_Typ<-rep(list(0),length(feature_function))
   for(z in 1:(end_typ-start_typ+1)-1){
     Event_Typ[[(start_typ+z)]]<-Types[[z+1]]
   }
@@ -315,34 +315,34 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
   registerDoParallel(cl)
   
   features<-data.frame()
-  #Im Falle aus der Source Sicht müssen die NA Values entfernt werden
-  if(Sicht==5){
+  #Im Falle aus der Source view müssen die NA Values entfernt werden
+  if(view==5){
     data<-data[(is.na(data$Source)!=T),]
   }
   
   cat("Please magnify the window big enough to present the progress bar completly.",fill=2)
   
   #Anlegen eines Fortschrittsbalken, dieser entspricht der Menge an zu bearbeitenden Daten
-  zeilen<-nrow(data[(data$Time >=(as.Date(startdatum)) & (data$Time <(as.Date(enddatum)))),])
-  fortschritt<-txtProgressBar(min=0, max=zeilen,width = 100,style = 3, char="=", file=stderr(),title="Feature extraction:")
-  bearbeitet<-0
+  rows<-nrow(data[(data$Time >=(as.Date(startdate)) & (data$Time <(as.Date(enddate)))),])
+  progress<-txtProgressBar(min=0, max=rows,width = 100,style = 3, char="=", file=stderr(),title="Feature extraction:")
+  processed<-0
   
   #Durchäuft anschlißend abhängig von der Zeiteinheit jeden Tag/Stunde bis zur Abbruchbedingung
   repeat{
     #Extrahiert alle Daten in dem Zeitraum
-    window<-data[(data$Time >=(as_datetime(startdatum) %m+% zeitfenster(i)) & (data$Time <(as_datetime(startdatum)%m+% zeitfenster(i+1+Time_bin_size)))),]
+    window<-data[(data$Time >=(as_datetime(startdate) %m+% zeitfenster(i)) & (data$Time <(as_datetime(startdate)%m+% zeitfenster(i+1+Time_bin_size)))),]
     #Falls es leer ist ->überspringe
     if(nrow(window)>0){
       #Extrahiert je nach Scihtweise und duplikatslos die Nutzer/Hosts/Quell-IPs
-      iter<- distinct(window,window[[Sicht]])
+      iter<- distinct(window,window[[view]])
       #Durchläuft anschließend die Liste in parallelister Form für jeden Nutzer/Host/Quell-IP
       ergebnisse<-foreach(j=1:length(iter[,1]),.packages = c("lubridate","dplyr","hms","R.utils"),.combine = rbind) %dopar%{
         #Extrahiert die Sichtdaten
-        data_user<-window[(window[,Sicht]==iter[j,1]),]
+        data_user<-window[(window[,view]==iter[j,1]),]
         ergebnis<-data.frame()
         #Wendet die Funktionen für die Featureextraktion an
-        for(k in 1:length(feature_funktionen)){
-          ergebnis[1,k]<-doCall(feature_funktionen[[k]],args=list(data_user=data_user,Sicht=Sicht,startdatum=startdatum,i=i,Event_Typ=Event_Typ[[k]]),.ignoreUnusedArgs=T)
+        for(k in 1:length(feature_function)){
+          ergebnis[1,k]<-doCall(feature_function[[k]],args=list(data_user=data_user,view=view,startdate=startdate,i=i,Event_Typ=Event_Typ[[k]]),.ignoreUnusedArgs=T)
         }
         return(ergebnis)
       }
@@ -350,34 +350,34 @@ feature_extraktion<-function(data,startdatum,enddatum,Sicht,Time_bin,cores,split
       features<-rbind(features,ergebnisse)
       
       #Erhöht die bereits durch itertriten Datensätze & gibt es aus
-      bearbeitet<-bearbeitet+nrow(window)
-      setTxtProgressBar(fortschritt,bearbeitet,title="Feature extraction:") 
+      processed<-processed+nrow(window)
+      setTxtProgressBar(progress,processed,title="Feature extraction:") 
       flush.console()
     }
     
     #Abbruchbedingung
-    if((as_datetime(startdatum)%m+% zeitfenster(i+1+Time_bin_size))>=as_datetime(enddatum)){
+    if((as_datetime(startdate)%m+% zeitfenster(i+1+Time_bin_size))>=as_datetime(enddate)){
       break
     }
     i<-i+1+Time_bin_size
   }
   #Stoppen des Clusters
   stopCluster(cl)
-  close(fortschritt)
+  close(progress)
   
   #Gibt den Features die Namen
   colnames(features)<-feature_namens
   
   #Wenn die Daten nicht gesplittet vorliegen, Cluster diese
   if(split!=T && gruppieren==T){
-    features<-gruppierung(features,Sicht,Time_bin,cores,load_model=load_model,model_path=model_path,save_model=save_model,Pfad=Pfad)
+    features<-group_up(features,view,Time_bin,cores,load_model=load_model,model_path=model_path,save_model=save_model,path=path)
   }
 
   return(features)
 }
 
 #Berechnen der Mittelwertdaten
-calc_means<-function(features,Sicht,cores){
+calc_means<-function(features,view,cores){
   
   #ignoriere Warnungen
   options(warn = -1)
@@ -412,7 +412,7 @@ calc_means<-function(features,Sicht,cores){
 }
 
 #Clustern
-clustern<-function(iter_means,features,k,label,load_model,model_path,save_model,Pfad){
+clustern<-function(iter_means,features,k,label,load_model,model_path,save_model,path){
   
   if(load_model){
     km.res<-readRDS(file = paste(model_path,"cluster.rds",sep=""))
@@ -427,7 +427,7 @@ clustern<-function(iter_means,features,k,label,load_model,model_path,save_model,
   }
   
   if(save_model){
-    saveRDS(km.res,paste(Pfad,"model/cluster.rds",sep = ""))
+    saveRDS(km.res,paste(path,"model/cluster.rds",sep = ""))
   }
   
   #Wenn es als Feature verwendet werden soll nutze Variante 1 anssonsten als Label Var 2
@@ -491,15 +491,15 @@ normalize_min_max<-function(features,min_max){
 }
 
 #Übergreifende Funktion für die Bildung der Mittelwerte+Clustern
-gruppierung<-function(features,Sicht,Time_bin,cores,label=F,load_model,model_path,save_model,Pfad){
+group_up<-function(features,view,Time_bin,cores,label=F,load_model,model_path,save_model,path){
   #Berechnung Mittelwerte
-  iter_means<-calc_means(features,Sicht,cores)
+  iter_means<-calc_means(features,view,cores)
   #Cluster zuweisung
-  features<-clustern(iter_means,features,13,label,load_model,model_path,save_model,Pfad)
+  features<-clustern(iter_means,features,13,label,load_model,model_path,save_model,path)
   
   if(save_model && label==F){
     min_max<-min_max_calc(features,Time_bin)
-    saveRDS(min_max,paste(Pfad,"model/min_max.rds",sep=""))
+    saveRDS(min_max,paste(path,"model/min_max.rds",sep=""))
   }
   
   #Führe eine 0-1 Normalisierung durch, falls es nicht als Label verwendet werden soll -> sorgt für Beschleunigung der Lerner
@@ -526,37 +526,37 @@ gruppierung<-function(features,Sicht,Time_bin,cores,label=F,load_model,model_pat
 }
 
 #Prüft ob Python 3 installiert ist, falls ja aktiviert es ein demenstprechendes vorher aktiviertes virtuell envirmoment
-setup_python<-function(Pfad){
+setup_python<-function(path){
   tryCatch(expr={
     use_python(as.character(system("which python3",intern = T)))
   },error=function(e){
     stop("Python 3 is not installed.",.call=F)
   })
-  use_virtualenv(paste(Pfad,"maliciousevents",sep=""))
+  use_virtualenv(paste(path,"maliciousevents",sep=""))
 }
 
 #Führt das Python Funktion mit dem Isolationsbaum aus
-isolationforest<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
-  source_python(paste(Input_Pfad,"ml/IsolationForest_Anwendung.py",sep=""))
-  isolationforest_exec(Input_Pfad,Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+isolationforest<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
+  source_python(paste(Input_path,"ml/IsolationForest_Anwendung.py",sep=""))
+  isolationforest_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Führt die Python Funktion mit dem kNN aus
-kNN<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
-  source_python(paste(Input_Pfad,"ml/kNN_Anwendung.py",sep=""))
-  knn_exec(Input_Pfad,Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+kNN<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
+  source_python(paste(Input_path,"ml/kNN_Anwendung.py",sep=""))
+  knn_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Führt die Python Funktion mit dem DAGMM aus
-dagmm<-function(Input_Pfad,Output_Pfad,cores,rank,load_model,save_model,model_path){
-  source_python(paste(Input_Pfad,"ml/DAGMM_Anwendung.py",sep=""))
-  dagmm_exec(Input_Pfad,Output_Pfad,as.integer(cores),rank,load_model,save_model,model_path)
+dagmm<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
+  source_python(paste(Input_path,"ml/DAGMM_Anwendung.py",sep=""))
+  dagmm_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
 }
 
 #Nutzt einen Random Forest um Nutzer/hosts/Quell-IPs die viele Gruppen besuchen als ungewöhnlich einzustuffen
-randomforest<-function(features,Sicht,Time_bin,cores,Pfad,load_model,model_path,save_model){
+randomforest<-function(features,view,Time_bin,cores,path,load_model,model_path,save_model){
   #Clustert die Daten und gibt die Mittelwertdaten+ die Clusternummer als Label zurück
-  means_label<-gruppierung(features,Sicht,Time_bin,cores,label = T,load_model,model_path,save_model,Pfad)
+  means_label<-group_up(features,view,Time_bin,cores,label = T,load_model,model_path,save_model,path)
   
   if(load_model){
     model<-readRDS(paste(model_path,"model.rds",sep=""))
@@ -624,7 +624,7 @@ randomforest<-function(features,Sicht,Time_bin,cores,Pfad,load_model,model_path,
   }
   
   if(save_model){
-    saveRDS(model,paste(Pfad,"model/","model.rds",sep=""))
+    saveRDS(model,paste(path,"model/","model.rds",sep=""))
   }
   
   #Prediction auf den echten Feature Datensatz
@@ -642,13 +642,13 @@ randomforest<-function(features,Sicht,Time_bin,cores,Pfad,load_model,model_path,
   result <- Identifier_Gruppe %>% distinct(Identifier,Gruppe) %>% group_by(Identifier) %>% summarise(n())
   result <- as.data.frame(result[order(result$`n()`,decreasing = T),])
   #Schreibt das Ergebniss nieder
-  write.csv(result,paste(Pfad,"Ergebnisse.csv",sep=""))
+  write.csv(result,paste(path,"Ergebnisse.csv",sep=""))
 }
 
 #Zur Visualierung werden Radarplots der erkannten Anomalien erstellt+ausgeben
-visualisierung_ergebnisse<-function(features,Output_Pfad,NOT_RF,rank){
+visualisierung_ergebnisse<-function(features,Output_path,NOT_RF,rank){
   
-  ergebnisse<-read.csv(paste(Output_Pfad,"Ergebnisse.csv",sep=""))
+  ergebnisse<-read.csv(paste(Output_path,"Ergebnisse.csv",sep=""))
   
   if("Stunde" %in% colnames(features)){
     features["Stunde"]<-as.numeric(seconds(as_hms(sapply(features["Stunde"],as.character))))
@@ -661,8 +661,8 @@ visualisierung_ergebnisse<-function(features,Output_Pfad,NOT_RF,rank){
     iter<-iter %>% slice(1:50)
   }
   
-  Output_Pfad<-paste(Output_Pfad,"Radarplots/",sep="")
-  dir.create(Output_Pfad)
+  Output_path<-paste(Output_path,"Radarplots/",sep="")
+  dir.create(Output_path)
   
   palette <- colorRampPalette(colors=c("#000000", "#FFFFF0"))
   palette_outsider<-colorRampPalette(c("red","purple"))
@@ -698,23 +698,23 @@ visualisierung_ergebnisse<-function(features,Output_Pfad,NOT_RF,rank){
 
       cols_in <- alpha(cols,0.2)
       
-      jpeg(paste(Output_Pfad,iter[i,1],".jpg",sep=""), width = 1900, height = 1900,quality=100,pointsize = 40,res=120)
+      jpeg(paste(Output_path,iter[i,1],".jpg",sep=""), width = 1900, height = 1900,quality=100,pointsize = 40,res=120)
       radarchart(plot_data,maxmin = F,axistype = 1,pcol=cols,pfcol=cols_in, plwd=1 , plty=2, cglty=1,cglwd=0.8, cglcol="#466D3A",vlcex=0.8,axislabcol="#00008B" )
       dev.off()  
   }
 }
 
 ###Datenanlyse Funktionen
-daten_analyse<-function(data,Pfad){
-  allgemeine_infos(data,Pfad)
-  logintypen(data,Pfad)
-  timeline<-timeline_month(data,Pfad)
+daten_analyse<-function(data,path){
+  allgemeine_infos(data,path)
+  logintypen(data,path)
+  timeline<-timeline_month(data,path)
   borders<-calc_borders(timeline)
-  timeline_day(data,Pfad,borders[[1]],borders[[2]])
+  timeline_day(data,path,borders[[1]],borders[[2]])
   return(borders)
 }
 
-logintypen<-function(data,Pfad){
+logintypen<-function(data,path){
   logontype<-data.frame()
   for(i in 1:14-1){
     logontype_x<-data[(data$Logon_Type==i),]
@@ -725,10 +725,10 @@ logintypen<-function(data,Pfad){
     geom_bar(stat="identity")+
     xlab("Logon Type") + ylab("Anzahl")
   
-  ggsave(paste(Pfad,"Login_Typen.png",sep=""),logontype_plot,width = 10,dpi=300,limitsize = F)
+  ggsave(paste(path,"Login_Typen.png",sep=""),logontype_plot,width = 10,dpi=300,limitsize = F)
 }
 
-allgemeine_infos<-function(data,Pfad){
+allgemeine_infos<-function(data,path){
   infos<-c()
   infos[1]<-paste("Existing Well known Source Ports:",paste(as.character(c(data[(data$Source_Port %in% c(1:1023) & is.na(data$Source_Port)!=T),"Source_Port"])),collapse=", "))
   infos[2]<-paste("Number of Hosts:",nrow(group_by(data,data$Host) %>% summarise(n())))
@@ -736,10 +736,10 @@ allgemeine_infos<-function(data,Pfad){
   infos[4]<-paste("Number of Source-IPs:",nrow(group_by(data,data$Source) %>% summarise(n())))
   infos[5]<-paste("Smallest date of the data:",min(data$Time))
   infos[6]<-paste("Newest date:",max(data$Time))
-  write.table(infos,file=paste(Pfad,"Allgemeine_Infos.txt",sep=""),row.names = F,col.names = F)
+  write.table(infos,file=paste(path,"Allgemeine_Infos.txt",sep=""),row.names = F,col.names = F)
 }
 
-timeline_month<-function(data,Pfad=0){
+timeline_month<-function(data,path=0){
   i<-0
   min_date<-as.Date(paste(year(min(data$Time)),month(min(data$Time)),"01",sep="-"))
   max_date<-as.Date(paste(year(max(data$Time)),month(max(data$Time)),"01",sep="-"))
@@ -755,12 +755,12 @@ timeline_month<-function(data,Pfad=0){
   }
   colnames(timeline)<-c("Time","Anzahl")
   
-  if(Pfad!=0){
+  if(path!=0){
     timeplot<-ggplot(timeline,aes(x=Time,y=Anzahl))+
       geom_area(fill="#69b3a2",alpha=0.5)+
       geom_line()
     
-    ggsave(paste(Pfad,"Volle_Zeitreihe_in_Monaten.png",sep=""),timeplot,width = 50,dpi=300,limitsize = F)
+    ggsave(paste(path,"Volle_Zeitreihe_in_Monaten.png",sep=""),timeplot,width = 50,dpi=300,limitsize = F)
   }
   
   return(timeline)
@@ -773,14 +773,14 @@ calc_borders<-function(timeline){
   return(list(left[1,1],as.Date(left[nrow(left),1]) %m+%months(1)))
 }
 
-timeline_day<-function(data,Pfad,startdatum,enddatum){
+timeline_day<-function(data,path,startdate,enddate){
   i<-0
   timeline<-data.frame()
   repeat{
-    timeline[i+1,1]<-(as.Date(startdatum)%m+% days(i))
-    timeline[i+1,2]<-nrow(data[(data$Time >=(as.Date(startdatum)%m+% days(i)) & (data$Time <(as.Date(startdatum)%m+% days(i+1)))),])
+    timeline[i+1,1]<-(as.Date(startdate)%m+% days(i))
+    timeline[i+1,2]<-nrow(data[(data$Time >=(as.Date(startdate)%m+% days(i)) & (data$Time <(as.Date(startdate)%m+% days(i+1)))),])
     
-    if((as.Date(startdatum)%m+% days(i))==as.Date(enddatum)){
+    if((as.Date(startdate)%m+% days(i))==as.Date(enddate)){
       break
     }
     i<-i+1
@@ -792,7 +792,7 @@ timeline_day<-function(data,Pfad,startdatum,enddatum){
     geom_area(fill="#69b3a2",alpha=0.5)+
     geom_line()
   
-  ggsave(paste(Pfad,"Quantil_Zeitreihe_Tage.png",sep=""),timeplot,width = 50,dpi=300,limitsize = F)
+  ggsave(paste(path,"Quantil_Zeitreihe_Tage.png",sep=""),timeplot,width = 50,dpi=300,limitsize = F)
 }
 
 #################
@@ -843,27 +843,27 @@ help_output<-function(){
 #Hauptfunktion steuert, welche Funktionen aufgerufen werden aufgrund der übergebenen Argumente
 main<-function(args,file){
   if(length(args)==0){
-    stop("Es muss mindestens ein Datensatz und ein Ausagebort angegeben werden",.call=F)
+    stop("You need to hand over a dataset.",.call=F)
   }else if(args[1]=="--help"){
     help_output()
   }else if(file.exists(args[1])==F){
-    stop("Es muss eine existierende Datei angegeben werden",.call=F)
+    stop("The file needs to exist.",.call=F)
   }else if(dir.exists(args[2])==F){
-    stop("Es muss ein existierendes Verzeichnis angeben werden",.call=F)
+    stop("The directory needs to exists.",.call=F)
   }else{
     data_analysis<-F
     if(file.access(as.character(args[2]),c(4,2))==-1){
-      stop("Gebe einen Speicherort an, indem du ausreichend Rechte besitzt (w,r).",.call=F)
+      stop("Enter a location where you got the sufficient rights (w,r).",.call=F)
     }
-   Pfad<-tryCatch(expr = {
-      Pfad<-paste(as.character(args[2]),"/FindMaliciousEvents_1/",sep="")
-      dir.create(Pfad)
+   path<-tryCatch(expr = {
+      path<-paste(as.character(args[2]),"/FindMaliciousEvents_1/",sep="")
+      dir.create(path)
     }, warning=function(w){
       dir<-list.dirs(as.character(args[2]),recursive = F,full.names = F)
       dir_ME<-grep("FindMaliciousEvents_[0-9]+",dir)
-      Pfad<-paste(as.character(args[2]),"/FindMaliciousEvents_",(max(as.numeric(sub("[^0-9]+","",dir[dir_ME])))+1),"/",sep="")
-      dir.create(Pfad)
-      return(Pfad)
+      path<-paste(as.character(args[2]),"/FindMaliciousEvents_",(max(as.numeric(sub("[^0-9]+","",dir[dir_ME])))+1),"/",sep="")
+      dir.create(path)
+      return(path)
     }, finally = {
     })
 
@@ -871,7 +871,7 @@ main<-function(args,file){
       data_analysis<-T
     }
     
-    Sicht<-4
+    view<-4
     Time_bin<-"d"
     Time_bin_size<-0
     days_instead<-F
@@ -879,18 +879,18 @@ main<-function(args,file){
     
     if(length(grep("-p",as.character(args)))!=0){
       if(length(args[grep("-p",as.character(args))+1])!=1){
-        stop("Wähle einer der Optionen für die Sichtweise (u,h,s)",.call=F)
+        stop("Choose one of the point of views as option (u,h,s)",.call=F)
       }else{
             if(as.character(args[grep("-p",as.character(args))+1])=="u" ||as.character(args[grep("-p",as.character(args))+1])=="h" ||as.character(args[grep("-p",as.character(args))+1])=="s" ){
               if(as.character(args[grep("-p",as.character(args))+1])=="u"){
-                Sicht<-4
+                view<-4
               }else if(as.character(args[grep("-p",as.character(args))+1])=="h"){
-                Sicht<-2
+                view<-2
               }else{
-                Sicht<-5
+                view<-5
               }
             }else{
-              stop("Wähle einer der gültigten Optionen für die Sichtweise (u,h,s)",.call=F)
+              stop("Choose one of the valid point of views as option  (u,h,s)",.call=F)
             }
           }
       }
@@ -900,7 +900,7 @@ main<-function(args,file){
     
     if(length(grep("-m",as.character(args)))!=0){
       if(length(args[grep("-m",as.character(args))+1])!=1){
-        stop("Wähle einer der Optionen für das machine learning (IF,kNN,RF)",.call=F)
+        stop("Choose one of the machine learning options (IF,kNN,RF)",.call=F)
       }else{
         if(as.character(args[grep("-m",as.character(args))+1])=="IF" ||as.character(args[grep("-m",as.character(args))+1])=="kNN" || as.character(args[grep("-m",as.character(args))+1])=="DAGMM" || as.character(args[grep("-m",as.character(args))+1])=="RF"){
           if(as.character(args[grep("-m",as.character(args))+1])=="IF"){
@@ -914,14 +914,14 @@ main<-function(args,file){
             gruppieren<-F
           }
         }else{
-          stop("Wähle einer der gültigten Optionen für das machine learning (IF,kNN,RF)",.call=F)
+          stop("Choose one of the valid machine learning options (IF,kNN,RF)",.call=F)
         }
       }
     }
     
     if(length(grep("-t",as.character(args)))!=0){
       if(length(args[grep("-t",as.character(args))+1])!=1){
-        stop("Wähle einer der Optionen für die Zeitblöcke (d,h,dh)",.call=F)
+        stop("Choose one of the time slot options (d,h,dh)",.call=F)
       }else{
         if(as.character(args[grep("-t",as.character(args))+1])=="h" ||as.character(args[grep("-t",as.character(args))+1])=="d" ||as.character(args[grep("-t",as.character(args))+1])=="dh"){
           if(as.character(args[grep("-t",as.character(args))+1])=="d"){
@@ -953,7 +953,7 @@ main<-function(args,file){
             }
           }
         }else{
-          stop("Wähle einer der gültigten Optionen für die Zeitblöcke (d,h,dh)",.call=F)
+          stop("Choose one of the valid time slot options (d,h,dh)",.call=F)
         }
       }
     }
@@ -968,15 +968,15 @@ main<-function(args,file){
     
     if(length(grep("-p",as.character(args)))!=0){
       if(length(args[grep("-p",as.character(args))+1])!=1){
-        stop("Gebe eine Anzahl an verwendeten Prozessoren an.",.call=F)
+        stop("Hand over a number of logical processors to use.",.call=F)
       }else{
         tryCatch(expr = {
           cores<-as.numeric(args[grep("-p",as.character(args))+1])
           if(cores>detectCores()){
-            stop("Deine angebene Kernanzahl ist größer als die verfügbare.",.call=F)
+            stop("You can´t use a bigger number of logicals processors then available.",.call=F)
           }
         },warning=function(w){
-          stop("Gebe eine Zahl ein, entsprechend deiner Cores an.",.call=F)
+          stop("Insert a number of cores, based on your processor.",.call=F)
         })
       }
     }else{
@@ -1007,7 +1007,7 @@ main<-function(args,file){
     
     if(length(grep("-s",as.character(args)))!=0){
       save_model<-T
-      dir.create(paste(Pfad,"model/",sep=""))
+      dir.create(paste(path,"model/",sep=""))
     }else{
       save_model<-F
     }
@@ -1022,102 +1022,102 @@ main<-function(args,file){
     #unix::rlimit_as(1e12, 1e12)
     
     if(length(grep("-e",as.character(args)))==0){
-            data<-einlesen(as.character(args[1]),Pfad)
+            data<-read_in(as.character(args[1]),path)
       if(is.null(nrow(data))==F){
         if(data_analysis==T){
-          Pfad_da_vor<-paste(Pfad,"Datenanalyse_vor/",sep="")
-          dir.create(Pfad_da_vor)
-          border<-daten_analyse(data,Pfad_da_vor)
+          path_da_vor<-paste(path,"Datenanalyse_vor/",sep="")
+          dir.create(path_da_vor)
+          border<-daten_analyse(data,path_da_vor)
         }
-        data<-vorverarbeiten(data)
+        data<-preprocessing(data)
         if(data_analysis==T){
-          Pfad_da_nach<-paste(Pfad,"Datenanalyse_nach/",sep="")
-          dir.create(Pfad_da_nach)
-          border<-daten_analyse(data,Pfad_da_nach)
+          path_da_nach<-paste(path,"Datenanalyse_nach/",sep="")
+          dir.create(path_da_nach)
+          border<-daten_analyse(data,path_da_nach)
         }
         
         if(length(grep("-d",as.character(args)))!=0){
           if(length(args[grep("-d",as.character(args))+1])!=1){
-            stop("Wähle einer der Optionen für die Start- und Enddaten (m,v)",.call=F)
+            stop("Choose an option for start- and enddate (m,v)",.call=F)
           }else{
             if(as.character(args[grep("-d",as.character(args))+1])=="m" ||as.character(args[grep("-d",as.character(args))+1])=="v"){
               if(as.character(args[grep("-d",as.character(args))+1])=="m"){
                 if(length(args[grep("-d",as.character(args))+2])!=1 && length(args[grep("-d",as.character(args))+3])!=1){
-                  stop("Gebe ein Start- & Enddatum an.",.call=F)
+                  stop("Hand over a start- and enddate.",.call=F)
                 }else{
                   tryCatch(expr = {
-                    startdatum<-as_date(args[grep("-d",as.character(args))+2])
-                    enddatum<-as_date(args[grep("-d",as.character(args))+3])
+                    startdate<-as_date(args[grep("-d",as.character(args))+2])
+                    enddate<-as_date(args[grep("-d",as.character(args))+3])
                   }, warning = function(w){
-                    stop("Gebe ein gültiges Start- bzw. Enddatum an.",.call=F)
+                    stop("Hand over a valid start- and enddate.",.call=F)
                   })
-                  if(startdatum>enddatum){
-                    stop("Dein Startdatum ist jünger als dein Enddatum, bitte Tausche deine Angaben.",.call=F)
+                  if(startdate>enddate){
+                    stop("Your startdate is older then the enddate, change the information.",.call=F)
                   }
                 }
               }else{
-                startdatum<-as_date(min(data$Time))
-                enddatum<-as_date(max(data$Time))
+                startdate<-as_date(min(data$Time))
+                enddate<-as_date(max(data$Time))
               }
             }else{
-              stop("Wähle einer der gültigten Optionen für die  Start- und Enddaten (m,v)",.call=F)
+              stop("Choose a valid option for the start- and enddate (m,v).",.call=F)
             }
           }
         }else{
           if(data_analysis==T){
-            startdatum<-border[[1]]
-            enddatum<-border[[2]]
+            startdate<-border[[1]]
+            enddate<-border[[2]]
           }else{
             timeline<-timeline_month(data)
             border<-calc_borders(timeline)
-            startdatum<-border[[1]]
-            enddatum<-border[[2]]
+            startdate<-border[[1]]
+            enddate<-border[[2]]
           }
         }
         
-        features<-feature_extraktion(data,startdatum,enddatum,Sicht,Time_bin,cores,gruppieren = gruppieren,load_model = load_model,Pfad = Pfad,save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size,days_instead=days_instead)
-        write.csv(features,paste(Pfad,"Features.csv",sep = ""))
+        features<-feature_extraction(data,startdate,enddate,view,Time_bin,cores,gruppieren = gruppieren,load_model = load_model,path = path,save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size,days_instead=days_instead)
+        write.csv(features,paste(path,"Features.csv",sep = ""))
       }else{
-        fertig<-F
-        zeilen_multi<-0
+        finished<-F
+        row_multi<-0
         back<-0
         features<-data.frame()
         vollstaendig<-F
         
         if(length(grep("-d",as.character(args)))!=0){
           if(length(args[grep("-d",as.character(args))+1])!=1){
-            stop("Wähle einer der Optionen für die Start- und Enddaten (m,v)",.call=F)
+            stop("Choose an option for start- and enddate (m,v)",.call=F)
           }else{
             if(as.character(args[grep("-d",as.character(args))+1])=="m" ||as.character(args[grep("-d",as.character(args))+1])=="v"){
               if(as.character(args[grep("-d",as.character(args))+1])=="m"){
                 if(length(args[grep("-d",as.character(args))+2])!=1 && length(args[grep("-d",as.character(args))+3])!=1){
-                  stop("Gebe ein Start- & Enddatum an.",.call=F)
+                  stop("Hand over a start- and enddate.",.call=F)
                 }else{
                   tryCatch(expr = {
-                    startdatum<-as_date(args[grep("-d",as.character(args))+2])
-                    enddatum<-as_date(args[grep("-d",as.character(args))+3])
+                    startdate<-as_date(args[grep("-d",as.character(args))+2])
+                    enddate<-as_date(args[grep("-d",as.character(args))+3])
                   }, warning = function(w){
-                    stop("Gebe ein gültiges Start- bzw. Enddatum an.",.call=F)
+                    stop("Hand over a valid start- and enddate.",.call=F)
                   })
-                  if(startdatum>enddatum){
-                    stop("Dein Startdatum ist jünger als dein Enddatum, bitte Tausche deine Angaben.",.call=F)
+                  if(startdate>enddate){
+                    stop("Your startdate is older then the enddate, change the information.",.call=F)
                   }
                 }
               }else{
                 vollstaendig<-T
               }
             }else{
-              stop("Wähle einer der gültigten Optionen für die  Start- und Enddaten (m,v)",.call=F)
+              stop("Choose a valid option for the start- and enddate (m,v).",.call=F)
             }
           }
         }else{
-          stop("Falls die Datei zu Groß ist musst du ein Start- bzw. Enddatum festlegen.",.call=F)
+          stop("If the file is to large, hand over a start- and enddate.",.call=F)
         }
-        while(fertig==F){
-          data<-teil_einlesen(Pfad,zeilen_multi,back)
+        while(finished==F){
+          data<-parted_read_in(path,row_multi,back)
           
-          startdatum_man<-startdatum
-          enddatum_man<-enddatum
+          startdatum_man<-startdate
+          enddatum_man<-enddate
           
           if(is.null(nrow(data))==F){
             
@@ -1127,7 +1127,7 @@ main<-function(args,file){
               if(startdatum_man>as_date(max(data$Time))){
                 ignore<-T
               }else if( enddatum_man<as_date(min(data$Time))){
-                fertig<-T
+                finished<-T
                 ignore<-T
               }else if(enddatum_man>as_date(max(data$Time))){
                 enddatum_man<-as_date(max(data$Time))
@@ -1140,58 +1140,58 @@ main<-function(args,file){
               startdatum_man<-as_date(min(data$Time))
             }
             
-            zeilen_multi<-zeilen_multi+1
+            row_multi<-row_multi+1
             
             if(ignore==F){
               tryCatch(expr = {
-                check<-read.csv(paste(Pfad,"time_sort.csv",sep=""),nrows = 1,skip=(zeilen_multi*10000000)-back+1,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F,col.names=c("Event_ID","Host","Time","Logon_ID","User","Source","Source_Port","Logon_Type"))
+                check<-read.csv(paste(path,"time_sort.csv",sep=""),nrows = 1,skip=(row_multi*10000000)-back+1,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F,col.names=c("Event_ID","Host","Time","Logon_ID","User","Source","Source_Port","Logon_Type"))
                 if(date(data[nrow(data),3])==date(check[1,3]) && Time_bin=="d"){
                   data<-data[!(date(data$Time)==date(check[1,3])),]
                 }else if(date(data[nrow(data),3])==date(check[1,3]) && hour(data[nrow(data),3])==hour(check[1,3]) && (Time_bin=="dh" || Time_bin=="h")){
                   data<-data[!(date(data$Time)==date(check[1,3]) & hour(data[nrow(data),3])==hour(check[1,3]) ),]
                 }
               }, error=function(e){
-                fertig<-T
+                finished<-T
               })
               back<-10000000-(nrow(data))
-              data<-vorverarbeiten(data)
-              features_new<-feature_extraktion(data,startdatum_man,enddatum_man,Sicht,Time_bin,cores,split=T,load_model = load_model,Pfad = Pfad, save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size,days_instead=days_instead)
+              data<-preprocessing(data)
+              features_new<-feature_extraction(data,startdatum_man,enddatum_man,view,Time_bin,cores,split=T,load_model = load_model,path = path, save_model = save_model,model_path = model_path,Time_bin_size=Time_bin_size,days_instead=days_instead)
               features<-rbind(features,features_new)
             }
             rm(data)
           }else{
-            fertig<-T
+            finished<-T
           }
         }
         
         if(gruppieren==T){
-          features<-gruppierung(features,Sicht,Time_bin,cores,load_model=load_model,model_path = model_path,save_model =save_model,Pfad=Pfad)
+          features<-group_up(features,view,Time_bin,cores,load_model=load_model,model_path = model_path,save_model =save_model,path=path)
         }
-        write.csv(features,paste(Pfad,"Features.csv",sep = ""))
+        write.csv(features,paste(path,"Features.csv",sep = ""))
       }
   
       
         
     }else{
-      features<-features_einlesen(as.character(args[grep("-e",as.character(args))+1]))
+      features<-features_read_in(as.character(args[grep("-e",as.character(args))+1]))
     }
     
-    absoluter_pfad<-location_script(file)
+    absoluter_path<-location_script(file)
     if(ml=="IF" || ml=="kNN" || ml=="DAGMM"){
-      setup_python(absoluter_pfad)
+      setup_python(absoluter_path)
       if(ml=="IF"){
-        isolationforest(absoluter_pfad,Pfad,cores,rank,load_model,save_model,model_path)
+        isolationforest(absoluter_path,path,cores,rank,load_model,save_model,model_path)
       }else if(ml=="kNN"){
-        kNN(absoluter_pfad,Pfad,cores,rank,load_model,save_model,model_path)
+        kNN(absoluter_path,path,cores,rank,load_model,save_model,model_path)
       }else{
-        dagmm(absoluter_pfad,Pfad,cores,rank,load_model,save_model,model_path)
+        dagmm(absoluter_path,path,cores,rank,load_model,save_model,model_path)
       }
     }else{
-      randomforest(features,Sicht,Time_bin,cores,Pfad,load_model,model_path,save_model)
+      randomforest(features,view,Time_bin,cores,path,load_model,model_path,save_model)
     }
     
     if(with_plots){
-      visualisierung_ergebnisse(features,Pfad,gruppieren,rank) 
+      visualisierung_ergebnisse(features,path,gruppieren,rank) 
     }
     
     system("clear")

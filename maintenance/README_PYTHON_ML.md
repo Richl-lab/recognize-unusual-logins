@@ -1,5 +1,5 @@
 
-# Add new python machine learning methode
+# Add new python machine learning method
 
 ## First step
 
@@ -32,7 +32,7 @@ Add the execution function:
 Add the function that executes the python program:
    ```sh
    YOUR_NEW_METHOD<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
-  	source_python(paste(Input_path,"ml/YOUR_NEW_METHOD_Anwendung.py",sep=""))
+  		source_python(paste(Input_path,"ml/YOUR_NEW_METHOD_Anwendung.py",sep=""))
    	YOUR_NEW_METHOD_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
    }
    ```

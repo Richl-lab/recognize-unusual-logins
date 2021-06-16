@@ -1,5 +1,19 @@
+<p align="center">
 
-# FindMaliciousEvents
+  <h3 align="center">FindMaliciousEvents</h3>
+
+  <p align="center">
+    This tool is used to find anomalies or suspicious login events especially to detect lateral movement.
+    <br />
+    <a href="https://github.com/Richl-lab/recognize-unusual-logins/blob/main/README.md"><strong>Explore the docs »</strong></a>
+    <br />
+    <br />
+    <a href="">View Demo</a>
+    ·
+    <a href="https://github.com/Richl-lab/recognize-unusual-logins/issues">Report Bug</a>
+    ·
+    <a href="https://github.com/Richl-lab/recognize-unusual-logins/issues">Request Feature</a>
+  </p>
 
 - [About The Project](#about-the-project)
   * [Built With](#built-with)

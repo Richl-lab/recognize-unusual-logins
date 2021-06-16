@@ -9,7 +9,7 @@ Add an optional console argument:
    	if(as.character(args[grep("-m",as.character(args))+1])=="IF" ||as.character(args[grep("-m",as.character(args))+1])=="kNN" || as.character(args[grep("-m",as.character(args))+1])=="DAGMM" || as.character(args[grep("-m",as.character(args))+1])=="RF" || as.character(args[grep("-m",as.character(args))+1])=="YOUR NEW METHOD"){
    		...
    	  	else if(as.character(args[grep("-m",as.character(args))+1])=="YOUR NEW METHOD"){
-          	  ml<-"YOUR NEW METHOD"
+          		ml<-"YOUR NEW METHOD"
         	}
         	...
    	}

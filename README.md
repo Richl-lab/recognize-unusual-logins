@@ -74,12 +74,18 @@ Find unusual logins from a existing feature set, that was create with this softw
    ```sh
    FindMaliciousEvents features.csv . -e
    ```
+   
+## Maintenance
+If you want to add new features, see [Maintenance Directory](https://github.com/Richl-lab/recognize-unusual-logins/tree/main/maintenance). It contains a discription to add different kind of features. 
+
+
 ## Roadmap
 * Error handling
-* Complety translated to english
+* Variables to english and commented code
 * DAGMM save and load
 
 ## License
+Distributed under the MIT License. See [LICENSE](https://github.com/Richl-lab/recognize-unusual-logins/blob/main/LICENSE) for more information.
 
 ## Contact
 Richard Mey

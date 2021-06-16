@@ -10,7 +10,7 @@ Add an optional console argument:
    		...
    	  	else if(as.character(args[grep("-m",as.character(args))+1])=="YOUR NEW METHOD"){
           		ml<-"YOUR NEW METHOD"
-        	}
+          		}
         	...
    	}
    }

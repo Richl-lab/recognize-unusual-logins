@@ -1,3 +1,8 @@
+# Modul:            Praxis-/Bachelorprojekt
+# Thema:            Detect Malicious Login Events
+# Autorenschaft:    Richard Mey <richard.mey@syss.de>
+# Stand:            16.06.2021
+
 import datetime
 import pandas as pd
 import re

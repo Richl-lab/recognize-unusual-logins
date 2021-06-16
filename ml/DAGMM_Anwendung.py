@@ -1,3 +1,8 @@
+# Modul:            Praxis-/Bachelorprojekt
+# Thema:            Detect Malicious Login Events
+# Autorenschaft:    Richard Mey <richard.mey@syss.de>
+# Stand:            16.06.2021
+
 # https://github.com/tnakae/DAGMM/blob/master/Example_DAGMM.ipynb
 def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_path):
     import sys

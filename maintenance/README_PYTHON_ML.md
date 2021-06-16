@@ -15,3 +15,25 @@ Add an optional console argument:
    	}
    }
    ```
+   
+## Second step
+
+Add the execution function:
+   ```sh
+   if(ml=="IF" || ml=="kNN" || ml=="DAGMM" || ml=="YOUR NEW METHOD"){
+   	else if(ml=="YOUR NEW METHOD"){
+   		YOUR_NEW_METHOD(absoluter_path,path,cores,rank,load_model,save_model,model_path)
+   	}
+   }
+   ```
+   
+## Third step   
+
+Add the function that executes the python program:
+   ```sh
+   YOUR_NEW_METHOD<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
+  	source_python(paste(Input_path,"ml/YOUR_NEW_METHOD_Anwendung.py",sep=""))
+   	YOUR_NEW_METHOD_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
+   }
+   ```
+

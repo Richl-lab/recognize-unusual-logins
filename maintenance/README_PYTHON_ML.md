@@ -1,5 +1,5 @@
 
-# Add new python machine learning method
+# Add a new python machine learning method
 
 ## First step
 
@@ -42,7 +42,7 @@ Add the function that executes the python program:
 Add the python program to the ml directory with the following structure:
    ```sh
    def YOUR_NEW_METHOD_exec(source_path, path, cores, rank, load_model, save_model, model_path):
-   	import sys
+        import sys
 	    sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
 	    sys.path.insert(1, source_path+"ml/")
 

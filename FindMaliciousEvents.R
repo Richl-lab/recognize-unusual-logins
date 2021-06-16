@@ -278,13 +278,13 @@ feature_extraction<-function(data,startdate,enddate,view,Time_bin,cores,split=F,
   feature_function<-append(feature_function,Anzahl_Events)
   feature_namens<-append(feature_namens,"Anzahl_Events")
   
-  Types<-list(2,3,9,10,c(11,12))
+  types<-list(2,3,9,10,c(11,12))
   start_typ<-length(feature_function)+1
-  for(z in 1:5){
+  for(z in 1:length(types)){
     feature_function<-append(feature_function,Anteil_Event)
-    feature_namens<-append(feature_namens,paste("Anteil",paste(as.character(unlist(Types[[z]])),collapse="_"),sep = "_"))
+    feature_namens<-append(feature_namens,paste("Anteil",paste(as.character(unlist(types[[z]])),collapse="_"),sep = "_"))
   }
-  end_typ<-start_typ+5-1
+  end_typ<-start_typ+length(types)-1
   feature_function<-append(feature_function,Events_per_Second)
   feature_namens<-append(feature_namens,"Events_per_Second")
   
@@ -307,7 +307,7 @@ feature_extraction<-function(data,startdate,enddate,view,Time_bin,cores,split=F,
   #wird eine liste identisch lang zu der Anzahl an Featuren erstellt mit den Informatione zu den Untersuchenden LoginTypen verwendet
   Event_Typ<-rep(list(0),length(feature_function))
   for(z in 1:(end_typ-start_typ+1)-1){
-    Event_Typ[[(start_typ+z)]]<-Types[[z+1]]
+    Event_Typ[[(start_typ+z)]]<-types[[z+1]]
   }
   
   #Damit der Prozess der Verarbeitung schneller geht wird ein Cluster mit der gegebene Anzahl erstellt
@@ -1177,15 +1177,20 @@ main<-function(args,file){
     }
     
     absoluter_path<-location_script(file)
+    
     if(ml=="IF" || ml=="kNN" || ml=="DAGMM"){
       setup_python(absoluter_path)
-      if(ml=="IF"){
-        isolationforest(absoluter_path,path,cores,rank,load_model,save_model,model_path)
-      }else if(ml=="kNN"){
-        kNN(absoluter_path,path,cores,rank,load_model,save_model,model_path)
-      }else{
-        dagmm(absoluter_path,path,cores,rank,load_model,save_model,model_path)
-      }
+      tryCatch(expr = {
+        if(ml=="IF"){
+          isolationforest(absoluter_path,path,cores,rank,load_model,save_model,model_path)
+        }else if(ml=="kNN"){
+          kNN(absoluter_path,path,cores,rank,load_model,save_model,model_path)
+        }else{
+          dagmm(absoluter_path,path,cores,rank,load_model,save_model,model_path)
+        }
+      }, error=function(e){
+        stop("An errror appeared into python script.",.call=F)
+      })
     }else{
       randomforest(features,view,Time_bin,cores,path,load_model,model_path,save_model)
     }

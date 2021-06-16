@@ -1,3 +1,4 @@
+
 <p align="center">
 
   <h3 align="center">FindMaliciousEvents</h3>
@@ -12,7 +13,7 @@
     ·
     <a href="https://github.com/Richl-lab/recognize-unusual-logins/issues">Report Bug</a>
     ·
-    <a href="https://github.com/Richl-lab/recognize-unusual-logins/issues">Request Feature</a>
+    <a href="https://github.com/Richl-lab/recognize-unusual-logins/tree/main/maintenance">See docs to add Feature</a>
   </p>
 
 - [About The Project](#about-the-project)

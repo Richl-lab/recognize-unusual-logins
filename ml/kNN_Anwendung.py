@@ -50,8 +50,12 @@ def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path)
         print("The features of the data should be the same like the model features.")
         sys.exit(1)
 
-    features['anomaly'] = pred
-    features['scores'] = scores
+    try:
+        features['anomaly'] = pred
+        features['scores'] = scores
+    except ValueError:
+        print("kNN ist not able to use two data sets for prediction and training.")
+        sys.exit(1)
     # Sortieren nach Score
     features = features.sort_values(by=['scores'], ascending=False)
 

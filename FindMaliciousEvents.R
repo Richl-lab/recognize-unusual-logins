@@ -548,9 +548,9 @@ kNN<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path
 }
 
 #Führt die Python Funktion mit dem DAGMM aus
-dagmm<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
+dagmm<-function(Input_path,Output_path,rank,load_model,save_model,model_path){
   source_python(paste(Input_path,"ml/DAGMM_Anwendung.py",sep=""))
-  dagmm_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
+  dagmm_exec(Input_path,Output_path,rank,load_model,save_model,model_path)
 }
 
 #Nutzt einen Random Forest um Nutzer/hosts/Quell-IPs die viele Gruppen besuchen als ungewöhnlich einzustuffen
@@ -646,7 +646,7 @@ randomforest<-function(features,view,Time_bin,cores,path,load_model,model_path,s
 }
 
 #Zur Visualierung werden Radarplots der erkannten Anomalien erstellt+ausgeben
-visualisierung_ergebnisse<-function(features,Output_path,NOT_RF,rank){
+visualization_results<-function(features,Output_path,NOT_RF,rank){
   
   ergebnisse<-read.csv(paste(Output_path,"Ergebnisse.csv",sep=""))
   
@@ -690,7 +690,8 @@ visualisierung_ergebnisse<-function(features,Output_path,NOT_RF,rank){
       cols[1:(length(cols)-length(outsider))]<-palette((length(cols)-length(outsider)))
       if(NOT_RF==T){
         cols[(length(cols)-length(outsider)+1):length(cols)]<-palette_outsider(length(outsider)) 
-        plot_data<-rbind(select(features[insider,],!one_of(c("User","Identifier","Tag"))),select(features[outsider,],!one_of(c("User","Identifier","Tag"))))
+        not_included<-c("User","Identifier","Tag")
+        plot_data<-rbind(select(features[insider,],!one_of(not_included)),select(features[outsider,],!one_of(not_included)))
       }else{
         plot_data<-insider[-c(1)]
       }
@@ -991,7 +992,7 @@ main<-function(args,file){
         if(dir.exists(model_path)==F){
           stop("You need to hand over an existing model directory.",.call=F)
         }
-        if(file.exists(paste(model_path,"cluster.rds",sep=""))==F || file.exists(paste(model_path,"min_max.rds",sep=""))==F || (file.exists(paste(model_path,"model.joblib",sep=""))==F && file.exists(paste(model_path,"model.rds",sep=""))==F) ){
+        if(file.exists(paste(model_path,"cluster.rds",sep=""))==F || file.exists(paste(model_path,"min_max.rds",sep=""))==F || (file.exists(paste(model_path,"model.joblib",sep=""))==F && file.exists(paste(model_path,"model.rds",sep=""))==F && file.exists(paste(model_path,"DAGMM_model.index",sep=""))==F) ){
           stop("Hand over a directory that contains the following content: min_max.rds, cluster.rds, model.(rds/joblib)",.call=F)
         }
         
@@ -1186,7 +1187,7 @@ main<-function(args,file){
         }else if(ml=="kNN"){
           kNN(absoluter_path,path,cores,rank,load_model,save_model,model_path)
         }else{
-          dagmm(absoluter_path,path,cores,rank,load_model,save_model,model_path)
+          dagmm(absoluter_path,path,rank,load_model,save_model,model_path)
         }
       }, error=function(e){
         stop("An errror appeared into python script.",.call=F)
@@ -1196,7 +1197,7 @@ main<-function(args,file){
     }
     
     if(with_plots){
-      visualisierung_ergebnisse(features,path,gruppieren,rank) 
+      visualization_results(features,path,gruppieren,rank) 
     }
     
     system("clear")

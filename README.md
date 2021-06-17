@@ -13,7 +13,7 @@
     ·
     <a href="https://github.com/Richl-lab/recognize-unusual-logins/issues">Report Bug</a>
     ·
-    <a href="https://github.com/Richl-lab/recognize-unusual-logins/tree/main/maintenance">See docs to add Feature</a>
+    <a href="https://github.com/Richl-lab/recognize-unusual-logins/tree/main/maintenance">See docs to add Features</a>
   </p>
 
 - [About The Project](#about-the-project)
@@ -97,7 +97,7 @@ If you want to add new features, see [Maintenance Directory](https://github.com/
 ## Roadmap
 * Error handling
 * Variables to english and commented code
-* DAGMM save and load
+* Check if loaded model and data got same features
 
 ## License
 Distributed under the MIT License. See [LICENSE](https://github.com/Richl-lab/recognize-unusual-logins/blob/main/LICENSE) for more information.

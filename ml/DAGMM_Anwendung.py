@@ -4,7 +4,7 @@
 # Stand:            16.06.2021
 
 # https://github.com/tnakae/DAGMM/blob/master/Example_DAGMM.ipynb
-def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_path):
+def dagmm_exec(source_path, path, rank, load_model, save_model, model_path):
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
     sys.path.insert(1, source_path + "ml/")
@@ -39,12 +39,23 @@ def dagmm_exec(source_path, path, cores, rank, load_model, save_model, model_pat
     column_width = len(features.columns)
 
     model_dagmm = DAGMM(
-        comp_hiddens=[column_width, int(0.75*column_width), int(0.5*column_width), 4, 2], comp_activation=tf.nn.tanh,
+        comp_hiddens=[column_width, int(0.75 * column_width), int(0.5 * column_width), 4, 2],
+        comp_activation=tf.nn.tanh,
         est_hiddens=[16, 8, 4], est_activation=tf.nn.tanh, est_dropout_ratio=0.25,
         epoch_size=2500, minibatch_size=512, random_seed=123
     )
 
-    model_dagmm.fit(features)
+    if not load_model:
+        model_dagmm.fit(features)
+    else:
+        try:
+            model_dagmm.restore(model_path)
+        except OSError:
+            print("Use the correct model on load with the correct machine learning option.")
+            sys.exit(1)
+
+    if save_model:
+        model_dagmm.save(path + 'model/')
 
     energy = model_dagmm.predict(features)
     features['scores'] = energy

@@ -29,12 +29,27 @@ If the extracted feature should not be normalized don´t add it to the start or 
 
 ## Third step
 
-Manipulate the following function, if it should not be normalized or not be included in calculate of the means.
+Manipulate the following function, if it should not be normalized or not be included in calculate the means.
    ```sh
-   feature_extraction<-function(...){
-      ...
-      eature_function<-append(feature_function,NEW_FUNCTION)
-      feature_namens<-append(feature_namens,"NAME_OF_NEW_FUNCTION") 
-      ...
-}
+   calc_means<-function(features,view,cores){
+     ...
+     features_without_factors<-select(features,!one_of(c("Identifier","User","Tag","Wochentag","Stunde","NAME_OF_NEW_FUNCTION")))
+     ...
+   }
+   ```
+Increment it:
+   ```sh
+   group_up<-function(...){
+     ...
+     features[,3+`1`:(ncol(features)-1)]<-normalize_min_max(features[,3+`1`:(ncol(features)-1)],min_max)
+     ...
+   }
+   ```
+If it should not be included in the plots:
+   ```sh
+   visualization_results<-function(...){
+     ...
+     not_included<-c(...,"NAME_OF_NEW_FUNCTION")
+     ...
+   }
    ```

@@ -10,6 +10,7 @@ from dagmm.gmm import GMM
 from os import makedirs
 from os.path import exists, join
 
+
 class DAGMM:
     """ Deep Autoencoding Gaussian Mixture Model.
 
@@ -23,10 +24,10 @@ class DAGMM:
     SCALER_FILENAME = "DAGMM_scaler"
 
     def __init__(self, comp_hiddens, comp_activation,
-            est_hiddens, est_activation, est_dropout_ratio=0.5,
-            minibatch_size=1024, epoch_size=100,
-            learning_rate=0.0001, lambda1=0.1, lambda2=0.0001,
-            normalize=True, random_seed=123):
+                 est_hiddens, est_activation, est_dropout_ratio=0.5,
+                 minibatch_size=1024, epoch_size=100,
+                 learning_rate=0.0001, lambda1=0.1, lambda2=0.0001,
+                 normalize=True, random_seed=123):
         """
         Parameters
         ----------
@@ -115,7 +116,7 @@ class DAGMM:
             self.drop = drop = tf.placeholder(dtype=tf.float32, shape=[])
 
             # Build graph
-            z, x_dash  = self.comp_net.inference(input)
+            z, x_dash = self.comp_net.inference(input)
             gamma = self.est_net.inference(z, drop)
             self.gmm.fit(z, gamma)
             energy = self.gmm.energy(z)
@@ -124,8 +125,8 @@ class DAGMM:
 
             # Loss function
             loss = (self.comp_net.reconstruction_error(input, x_dash) +
-                self.lambda1 * tf.reduce_mean(energy) +
-                self.lambda2 * self.gmm.cov_diag_loss())
+                    self.lambda1 * tf.reduce_mean(energy) +
+                    self.lambda2 * self.gmm.cov_diag_loss())
 
             # Minimizer
             minimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(loss)
@@ -136,7 +137,11 @@ class DAGMM:
             # Create tensorflow session and initilize
             init = tf.global_variables_initializer()
 
-            self.sess = tf.Session(graph=graph)
+            # config = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1,
+            #                        allow_soft_placement=True, device_count={'CPU': 1})
+
+            self.sess = tf.Session(graph=graph)  # config=config
+            # tf.keras.backend.set_session(self.sess)
             self.sess.run(init)
 
             # Training
@@ -150,15 +155,15 @@ class DAGMM:
                     x_batch = x[idx[i_start:i_end]]
 
                     self.sess.run(minimizer, feed_dict={
-                        input:x_batch, drop:self.est_dropout_ratio})
+                        input: x_batch, drop: self.est_dropout_ratio})
 
                 if (epoch + 1) % 100 == 0:
-                    loss_val = self.sess.run(loss, feed_dict={input:x, drop:0})
+                    loss_val = self.sess.run(loss, feed_dict={input: x, drop: 0})
                     print(" epoch {}/{} : loss = {:.3f}".format(epoch + 1, self.epoch_size, loss_val))
 
             # Fix GMM parameter
             fix = self.gmm.fix_op()
-            self.sess.run(fix, feed_dict={input:x, drop:0})
+            self.sess.run(fix, feed_dict={input: x, drop: 0})
             self.energy = self.gmm.energy(z)
 
             tf.add_to_collection("save", self.input)
@@ -186,7 +191,7 @@ class DAGMM:
         if self.normalize:
             x = self.scaler.transform(x)
 
-        energies = self.sess.run(self.energy, feed_dict={self.input:x})
+        energies = self.sess.run(self.energy, feed_dict={self.input: x})
         return energies
 
     def save(self, fdir):
@@ -207,6 +212,7 @@ class DAGMM:
             makedirs(fdir)
 
         model_path = join(fdir, self.MODEL_FILENAME)
+        tf.disable_eager_execution()
         self.saver.save(self.sess, model_path)
 
         if self.normalize:

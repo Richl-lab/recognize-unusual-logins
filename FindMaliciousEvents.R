@@ -195,7 +195,7 @@ feature_extraction<-function(data,startdate,enddate,view,Time_bin,cores,split=F,
   }
   
   Wochentag<-function(startdate,i,...){
-    return(wday(ymd(as.Date(startdate) %m+% days(i))))
+    return(wday(ymd(as.Date(startdate) %m+% days(i)),week_start = getOption("lubridate.week.start",1)))
   }
   
   Stunde<-function(i,...){
@@ -642,7 +642,7 @@ randomforest<-function(features,view,Time_bin,cores,path,load_model,model_path,s
   result <- Identifier_Gruppe %>% distinct(Identifier,Gruppe) %>% group_by(Identifier) %>% summarise(n())
   result <- as.data.frame(result[order(result$`n()`,decreasing = T),])
   #Schreibt das Ergebniss nieder
-  write.csv(result,paste(path,"Ergebnisse.csv",sep=""))
+  write.csv(result,paste(path,"Ergebnisse.csv",sep=""),row.names = F)
 }
 
 #Zur Visualierung werden Radarplots der erkannten Anomalien erstellt+ausgeben
@@ -685,14 +685,18 @@ visualization_results<-function(features,Output_path,NOT_RF,rank){
       }
       cols <- character(nrow(insider))
     }
+    
+    if(NOT_RF){
       insider<-subset(insider,!(insider %in% outsider))
+    }
       
-      cols[1:(length(cols)-length(outsider))]<-palette((length(cols)-length(outsider)))
       if(NOT_RF==T){
+        cols[1:(length(cols)-length(outsider))]<-palette((length(cols)-length(outsider)))
         cols[(length(cols)-length(outsider)+1):length(cols)]<-palette_outsider(length(outsider)) 
         not_included<-c("User","Identifier","Tag")
         plot_data<-rbind(select(features[insider,],!one_of(not_included)),select(features[outsider,],!one_of(not_included)))
       }else{
+        cols<-palette(nrow(insider))
         plot_data<-insider[-c(1)]
       }
       

@@ -82,7 +82,8 @@ location_script<-function(file){
   #Extrahieren des Realtiven pathes von der Link Datei zum Orginal
   relativ_path<-Sys.readlink(paste("/",link_path,"FindMaliciousEvents",sep=""))
   #Zusammenfügen beider Informationen
-  absolute_path<-paste("/",sub("\\.local/bin/","",link_path),sub("\\.\\./\\.\\./","",sub("FindMaliciousEvents.R$","",relativ_path)),sep="")
+  #absolute_path<-paste("/",sub("\\.local/bin/","",link_path),sub("\\.\\./\\.\\./","",sub("FindMaliciousEvents.R$","",relativ_path)),sep="")
+  absolute_path<-paste(getAbsolutePath.default(sub("FindMaliciousEvents.R$","",relativ_path),workDirectory = paste("/",link_path,sep="")),"/",sep="")
   return(absolute_path)
 }
 
@@ -668,45 +669,51 @@ visualization_results<-function(features,Output_path,NOT_RF,rank){
   palette_outsider<-colorRampPalette(c("red","purple"))
   par(mar = c(1, 1, 2, 1))
   par(oma=c(0,0,0,0))
-  
-  for(i in 1:nrow(iter)){
-    if(NOT_RF==T){
-      outsider<-grep(paste("^X",iter[i,1],"(\\.[0-9]+$){0,1}",sep=""),ergebnisse[,1],value=T)
-      insider<-grep(paste("^X",iter[i,1],"(\\.[0-9]+$){0,1}",sep=""),rownames(features),value=T) 
-      if(length(insider)>50){
-        insider<-sample(insider,50)
+  tryCatch(
+    expr = {
+      for(i in 1:nrow(iter)){
+        if(NOT_RF==T){
+          outsider<-grep(paste("^X",iter[i,1],"(\\.[0-9]+$){0,1}",sep=""),ergebnisse[,1],value=T)
+          insider<-grep(paste("^X",iter[i,1],"(\\.[0-9]+$){0,1}",sep=""),rownames(features),value=T) 
+          if(length(insider)>50){
+            insider<-sample(insider,50)
+          }
+          cols <- character(length(insider))
+        }else{
+          insider<-features[(features$Identifier==iter[i,1]),]
+          outsider<-""
+          if(nrow(insider)>50){
+            insider<-insider[sample(1:nrow(insider),50),]
+          }
+          cols <- character(nrow(insider))
+        }
+        
+        if(NOT_RF){
+          insider<-subset(insider,!(insider %in% outsider))
+        }
+        
+        if(NOT_RF==T){
+          cols[1:(length(cols)-length(outsider))]<-palette((length(cols)-length(outsider)))
+          cols[(length(cols)-length(outsider)+1):length(cols)]<-palette_outsider(length(outsider)) 
+          not_included<-c("User","Identifier","Tag")
+          plot_data<-rbind(select(features[insider,],!one_of(not_included)),select(features[outsider,],!one_of(not_included)))
+        }else{
+          cols<-palette(nrow(insider))
+          plot_data<-insider[-c(1)]
+        }
+        
+        
+        cols_in <- alpha(cols,0.2)
+        
+        jpeg(paste(Output_path,iter[i,1],".jpg",sep=""), width = 1900, height = 1900,quality=100,pointsize = 40,res=120)
+        radarchart(plot_data,maxmin = F,axistype = 1,pcol=cols,pfcol=cols_in, plwd=1 , plty=2, cglty=1,cglwd=0.8, cglcol="#466D3A",vlcex=0.8,axislabcol="#00008B" )
+        dev.off()  
       }
-      cols <- character(length(insider))
-    }else{
-      insider<-features[(features$Identifier==iter[i,1]),]
-      outsider<-""
-      if(nrow(insider)>50){
-        insider<-insider[sample(1:nrow(insider),50),]
-      }
-      cols <- character(nrow(insider))
+    }, error = function(e){
+      cat("No Radarplots generated, because there is just one Feature per view to be plotted.",fill=1)
     }
-    
-    if(NOT_RF){
-      insider<-subset(insider,!(insider %in% outsider))
-    }
-      
-      if(NOT_RF==T){
-        cols[1:(length(cols)-length(outsider))]<-palette((length(cols)-length(outsider)))
-        cols[(length(cols)-length(outsider)+1):length(cols)]<-palette_outsider(length(outsider)) 
-        not_included<-c("User","Identifier","Tag")
-        plot_data<-rbind(select(features[insider,],!one_of(not_included)),select(features[outsider,],!one_of(not_included)))
-      }else{
-        cols<-palette(nrow(insider))
-        plot_data<-insider[-c(1)]
-      }
-      
+  )
 
-      cols_in <- alpha(cols,0.2)
-      
-      jpeg(paste(Output_path,iter[i,1],".jpg",sep=""), width = 1900, height = 1900,quality=100,pointsize = 40,res=120)
-      radarchart(plot_data,maxmin = F,axistype = 1,pcol=cols,pfcol=cols_in, plwd=1 , plty=2, cglty=1,cglwd=0.8, cglcol="#466D3A",vlcex=0.8,axislabcol="#00008B" )
-      dev.off()  
-  }
 }
 
 ###Datenanlyse Funktionen
@@ -1204,8 +1211,7 @@ main<-function(args,file){
       visualization_results(features,path,gruppieren,rank) 
     }
     
-    system("clear")
-    }
+  }
 
 }
 

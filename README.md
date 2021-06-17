@@ -23,6 +23,7 @@
 - [Login Data](#login-data)
 - [Usage](#usage)
   * [Examples](#examples)
+  * [Demo](#demo)
 - [Roadmap](#roadmap)
 - [License](#license)
 - [Contact](#contact)
@@ -33,8 +34,8 @@ This tool is used to find anomalies or suspicious login events.
 
 ### Built With
 * R & R-Studio
-* Python & Jupyter Notebook/ Pycharm
-* Shell
+* Python & Jupyter Notebook/Pycharm
+* Shell Pycharm
 
 ## Getting Started
 
@@ -89,6 +90,8 @@ Find unusual logins from a existing feature set, that was create with this softw
    ```sh
    FindMaliciousEvents features.csv . -e
    ```
+
+### Demo
    
 ## Maintenance
 If you want to add new features, see [Maintenance Directory](https://github.com/Richl-lab/recognize-unusual-logins/tree/main/maintenance). It contains a discription to add different kind of features. 

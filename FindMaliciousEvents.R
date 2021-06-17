@@ -705,7 +705,7 @@ visualization_results<-function(features,Output_path,NOT_RF,rank){
         
         cols_in <- alpha(cols,0.2)
         
-        jpeg(paste(Output_path,iter[i,1],".jpg",sep=""), width = 1900, height = 1900,quality=100,pointsize = 40,res=120)
+        jpeg(paste(Output_path,i,"_",iter[i,1],".jpg",sep=""), width = 1900, height = 1900,quality=100,pointsize = 40,res=120)
         radarchart(plot_data,maxmin = F,axistype = 1,pcol=cols,pfcol=cols_in, plwd=1 , plty=2, cglty=1,cglwd=0.8, cglcol="#466D3A",vlcex=0.8,axislabcol="#00008B" )
         dev.off()  
       }

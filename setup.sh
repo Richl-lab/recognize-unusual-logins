@@ -10,7 +10,7 @@ then
 		sudo apt-get install r-base
 		sudo apt-get install python3.8
 
-		sudo -H pip3 install --upgrade pip
+		sudo apt-get install python3-pip
 		sudo apt-get install python3-venv
 	} || {
 		echo "Not able to install, all packages"
@@ -37,6 +37,7 @@ then
 		python3 -m pip install -r ./requirements.txt
 	fi
 
+  #Fügt die bearbeitete Version von dagmm hinzu
 	cp -r ./lib/. ./maliciousevents/lib/python3.8/site-packages/
 
 	#Deaktiviert die Virtuelle Umgebung wieder

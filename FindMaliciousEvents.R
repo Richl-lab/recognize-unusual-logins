@@ -571,6 +571,9 @@ randomforest<-function(features,view,Time_bin,cores,path,load_model,model_path,s
         stop("Use the correct model on load with the correct machine learning option.",.call=F)
       }
     )
+    if(any((model[["forest"]][["independent.variable.names"]] %in% colnames(means_label))==F)){
+      cat("Your given model contains a feature that is note included in your extracted feature set.",fill = 1)
+    }
   }else{
     #Teilt die Mittelwertdaren in Train- und Testdaten
     train<-means_label[sample(1:nrow(means_label),nrow(means_label)*0.7),]
@@ -820,7 +823,7 @@ help_output<-function(){
         "",
         "--help    Help output",
         "-da       Gives an additional data analysis output",
-        "-p        Specification of the perspective with the following argument, default is User",
+        "-v        Specification of the perspective with the following argument, default is User",
         "          u User   From a users point of view",
         "          h Host   From a hosts point of view",
         "          s Source From a source point of view",
@@ -889,14 +892,14 @@ main<-function(args,file){
     days_instead<-F
     write_features<-F
     
-    if(length(grep("-p",as.character(args)))!=0){
-      if(length(args[grep("-p",as.character(args))+1])!=1){
+    if(length(grep("-v",as.character(args)))!=0){
+      if(length(args[grep("-v",as.character(args))+1])!=1){
         stop("Choose one of the point of views as option (u,h,s)",.call=F)
       }else{
-            if(as.character(args[grep("-p",as.character(args))+1])=="u" ||as.character(args[grep("-p",as.character(args))+1])=="h" ||as.character(args[grep("-p",as.character(args))+1])=="s" ){
-              if(as.character(args[grep("-p",as.character(args))+1])=="u"){
+            if(as.character(args[grep("-v",as.character(args))+1])=="u" ||as.character(args[grep("-v",as.character(args))+1])=="h" ||as.character(args[grep("-v",as.character(args))+1])=="s" ){
+              if(as.character(args[grep("-v",as.character(args))+1])=="u"){
                 view<-4
-              }else if(as.character(args[grep("-p",as.character(args))+1])=="h"){
+              }else if(as.character(args[grep("-v",as.character(args))+1])=="h"){
                 view<-2
               }else{
                 view<-5
@@ -952,7 +955,7 @@ main<-function(args,file){
               Time_bin<-"dh"
             }
             
-            if(length(args[grep("-t",as.character(args))+2])!=1){
+            if(length(args[grep("-t",as.character(args))+2])!=0){
               if(length(grep("^[0-9]*$",as.character(args[grep("-t",as.character(args))+2])))!=0){
                 Time_bin_size<-as.numeric(args[grep("-t",as.character(args))+2])-1
                 if(Time_bin_size<0 || Time_bin_size >71){
@@ -1003,11 +1006,11 @@ main<-function(args,file){
         if(dir.exists(model_path)==F){
           stop("You need to hand over an existing model directory.",.call=F)
         }
-        if(file.exists(paste(model_path,"cluster.rds",sep=""))==F || file.exists(paste(model_path,"min_max.rds",sep=""))==F || (file.exists(paste(model_path,"model.joblib",sep=""))==F && file.exists(paste(model_path,"model.rds",sep=""))==F && file.exists(paste(model_path,"DAGMM_model.index",sep=""))==F) ){
-          stop("Hand over a directory that contains the following content: min_max.rds, cluster.rds, model.(rds/joblib)",.call=F)
+        if(file.exists(paste(model_path,"cluster.rds",sep=""))==F || (file.exists(paste(model_path,"min_max.rds",sep=""))==F && ml!="RF") || (file.exists(paste(model_path,"model.joblib",sep=""))==F && file.exists(paste(model_path,"model.rds",sep=""))==F && file.exists(paste(model_path,"DAGMM_model.index",sep=""))==F) ){
+          stop("Hand over a directory that contains the following content: (min_max.rds), cluster.rds, model.(rds/joblib/index)",.call=F)
         }
         
-        if((file.exists(paste(model_path,"model.rds",sep=""))==F && ml=="RF") || (file.exists(paste(model_path,"model.rds",sep=""))==T && (ml=="IF" || ml=="kNN"))){
+        if((file.exists(paste(model_path,"model.rds",sep=""))==F && ml=="RF") || (file.exists(paste(model_path,"model.rds",sep=""))==T && (ml=="IF" || ml=="kNN")) || (file.exists(paste(model_path,"DAGMM_model.index",sep=""))==F && ml=="DAGMM")){
           stop("Use the correct model on load with the correct machine learning option.",.call=F)
         }
         load_model<-T

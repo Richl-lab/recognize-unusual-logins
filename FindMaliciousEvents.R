@@ -563,7 +563,7 @@ randomforest<-function(features,view,Time_bin,cores,path,load_model,model_path,s
     model<-readRDS(paste(model_path,"model.rds",sep=""))
     tryCatch(
       expr = {
-        model_type=attr(model$forest,"class")
+        model_type<-attr(model$forest,"class")
         if(model_type!="ranger.forest"){
           stop("Use the correct model on load with the correct machine learning option.",.call=F)
         }

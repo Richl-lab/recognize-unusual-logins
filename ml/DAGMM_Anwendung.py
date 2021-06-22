@@ -4,7 +4,7 @@
 # Stand:            16.06.2021
 
 # https://github.com/tnakae/DAGMM/blob/master/Example_DAGMM.ipynb
-def dagmm_exec(source_path, path, rank, load_model, save_model, model_path):
+def dagmm_exec(source_path, path, rank, mean_rank, load_model, save_model, model_path):
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
     sys.path.insert(1, source_path + "ml/")
@@ -30,10 +30,10 @@ def dagmm_exec(source_path, path, rank, load_model, save_model, model_path):
     features = pd.concat([features.reset_index(drop=True), groups.reset_index(drop=True)], axis=1)
     features = features.set_index(rownames)
 
-    if "Stunde" in columns:
+    if "hour" in columns:
         hours, features = pp.convert_hours(features)
 
-    if "Tag" in columns:
+    if "day" in columns:
         days, features = pp.convert_days(features)
 
     column_width = len(features.columns)
@@ -61,17 +61,20 @@ def dagmm_exec(source_path, path, rank, load_model, save_model, model_path):
     features['scores'] = energy
     features = features.sort_values(by=['scores'], ascending=False)
 
-    if "Stunde" in columns:
-        features['Stunde'] = hours
+    if "hour" in columns:
+        features['hour'] = hours
 
-    if "Tag" in columns:
-        features['Tag'] = days
+    if "day" in columns:
+        features['day'] = days
 
     # Anomalien in die Ausgabe schreiben
     if not rank:
         anomaly_threshold = np.percentile(energy, 99.99)
-        anomaly = features['scsores'] >= anomaly_threshold
-        features[anomaly].to_csv(path + 'Ergebnisse.csv')
+        anomaly = features['scores'] >= anomaly_threshold
+        features[anomaly].to_csv(path + 'results.csv')
     else:
-        res = pp.rank(features)
-        res.to_csv(path + 'Ergebnisse.csv')
+        if mean_rank:
+            res = pp.rank_mean(features)
+        else:
+            res = pp.rank_first(features)
+        res.to_csv(path + 'results.csv')

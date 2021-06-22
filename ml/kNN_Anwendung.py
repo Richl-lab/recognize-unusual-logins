@@ -4,7 +4,7 @@
 # Stand:            16.06.2021
 
 # Funktionsdefinition für den knn mit Ausgabepfad+Anzahl an Kernen
-def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path):
+def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path):
     # Laden der nötigen Bibliotheken
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
@@ -20,10 +20,10 @@ def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path)
 
     columns = features.columns.values.tolist()
 
-    if "Stunde" in columns:
+    if "hour" in columns:
         hours, features = pp.convert_hours(features)
 
-    if "Tag" in columns:
+    if "day" in columns:
         days, features = pp.convert_days(features)
 
     if not load_model:
@@ -59,15 +59,18 @@ def knn_exec(source_path, path, cores, rank, load_model, save_model, model_path)
     # Sortieren nach Score
     features = features.sort_values(by=['scores'], ascending=False)
 
-    if "Stunde" in columns:
-        features['Stunde'] = hours
+    if "hour" in columns:
+        features['hour'] = hours
 
-    if "Tag" in columns:
-        features['Tag'] = days
+    if "day" in columns:
+        features['day'] = days
 
     # Anomalien in die Ausgabe schreiben
     if not rank:
-        features.loc[features['anomaly'] == 1].to_csv(path + 'Ergebnisse.csv')
+        features.loc[features['anomaly'] == 1].to_csv(path + 'results.csv')
     else:
-        res = pp.rank(features)
-        res.to_csv(path + 'Ergebnisse.csv')
+        if mean_rank:
+            res = pp.rank_mean(features)
+        else:
+            res = pp.rank_first(features)
+        res.to_csv(path + 'results.csv')

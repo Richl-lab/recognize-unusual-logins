@@ -17,30 +17,30 @@
 #   Verwendeter ML Methode
 
 #####################
-# Kommandoargumente #
+# Command arguments #
 #####################
 
-#Laden der Argumente aus der Kommandozeile
+# Loading arguments from command line
 args <- commandArgs()
 
 #########
 # Setup #
 #########
 
-#Legt den path zu den Librarys fest
+# Set the path to the R site packages
 .libPaths("~/.R")
-#Funktion zum installieren/laden aller nötigen Pakete
+# function to load and activate all needed libraries
 load_packages<-function(){
-  #Dowloadadresse
+  # Download path to libraries
   repos <- "https://cran.r-project.org/"
   
-  ##Installieren der Pakete
+  ## Install all needed libraries
   #https://stackoverflow.com/questions/9341635/check-for-installed-packages-before-running-install-packages
   packages <- c("tidyr","dplyr","ggplot2","tools","lubridate","doParallel","reshape2","scales","FactoMineR","factoextra","R.utils","reticulate","RColorBrewer","fmsb","BBmisc","ranger","caret","e1071","clue")
   suppressMessages(install.packages(setdiff(packages, rownames(installed.packages())),repos=repos,quiet = T))
   
   
-  #Laden der Pakete
+  # Load all libraries
   suppressMessages(library(tidyr))
   suppressMessages(library(tools))
   suppressMessages(library(dplyr))
@@ -61,16 +61,15 @@ load_packages<-function(){
   suppressMessages(library(clue))
   
   
-  #Options
-  options(lubridate.week.start=1) #Wochentag beginnt Montag
-  options("scipen" = 10) #Große Zahlen werden vollständig dargestellt
-  #Sys.timezone()
+  # Options
+  options(lubridate.week.start=1) #weekday starts monday
+  options("scipen" = 10)
   Sys.setenv(TZ='UTC')
 }
 
-#Dadurch das innerhalb des setups das Script als Linkdatei verfügbar gemacht wird, muss der Vollständige path zu dessem Order ermittelt werden
+# If the script start from console as link file, its needed to extract the path to the original path
 location_script<-function(file){
-  #Extrahieren des pathes zum Ort wo sich die Link Datei befindet
+  # Path to link file
   file_loc<-sub("[^/]*$","",sub("--file=","",file[grep("--file=.*",file)]))
   if(substring(file_loc,1,1)=="."){
     path_exec<-system("pwd",intern=T)
@@ -78,43 +77,43 @@ location_script<-function(file){
   }else{
     link_path<-substring(file_loc,2)
   }
-  #Extrahieren des Realtiven pathes von der Link Datei zum Orginal
+  # Relative path from link file to dir
   relativ_path<-Sys.readlink(paste("/",link_path,"FindMaliciousEvents",sep=""))
-  #Zusammenfügen beider Informationen
+  # Calculate absolute path
   #absolute_path<-paste("/",sub("\\.local/bin/","",link_path),sub("\\.\\./\\.\\./","",sub("FindMaliciousEvents.R$","",relativ_path)),sep="")
   absolute_path<-paste(getAbsolutePath.default(sub("FindMaliciousEvents.R$","",relativ_path),workDirectory = paste("/",link_path,sep="")),"/",sep="")
   return(absolute_path)
 }
 
-#read_in der Raw Daten
-read_in<-function(path,Output_path){
-  #Da R die Datein in den memory ablegt und es bei zu großen Datein zu einem Crash führt, muss entschieden werden ob die Datei getrennt oder vollständig eingelesen wird
-  #Auslesen des freien memorys
+# Read raw data
+read_in<-function(data_path,path){
+  # R loads all data in the memory, so if the raw data it cant read all without crashing, thats why it can be splited read in
+  # Read in free memory
   mem<-system('free -m',intern=T)
   mem<-strsplit(mem," ")
   mem<-as.numeric(tail(mem[[2]],n=1))
 
-  #Auslesen der Dateigröße
-  size<-as.numeric(file.info(path)$size)
+  # Read in data file size
+  size<-as.numeric(file.info(data_path)$size)/1000000
 
-  #Wenn das File keine csv ist oder nicht existiert wird das Programm abgebrochen
-    if(file_ext(path)=="csv"){
-      #Wenn keine Rechte bestehen die Datei auszulesen, wird das Programm abgebrochen
-      if(file.access(path,2)==-1){
+  # End program if its not csv
+    if(file_ext(data_path)=="csv"){
+      # If the user dont got enough rights, end
+      if(file.access(data_path,2)==-1){
         stop("Enter a file for which you got the rights to read.",.call=F)
       }
       
-      #Wenn die Rohdatei mind. 40% des Memorys belegn würde, wird die Datei teilweise eingelesen
-      if(size>=mem*0.5){
+      # If the raw data file, occupied more than 40% of the memory -> parted read in
+      if(size>=mem*0.4){
           cat("The specified file is too large, hence the read-in/ preprocessing/ feature extraction will be splited. This process might take more time.",fill=2)
           split<-T
-          #Damit die Features vollständig bleiben, wird die Orginal Datei nach der Zeit sortiert
-          system(paste("sort -k3 -t, ",path, " >> ", Output_path,"time_sort.csv",sep=""))
+          # To let the features be complety, sort it by time
+          system(paste("sort -k3 -t, ",data_path, " >> ", path,"time_sort.csv",sep=""))
           return(split)
         }else{
-          #Wenn die Datei kleiner als 40% des freien Memorys ist wird die Datei eingelesen
+          # <40% read data
           tryCatch(expr={
-            data<-read.csv(path,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
+            data<-read.csv(data_path,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
           }, error=function(e){
             stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
           },warning = function(w){
@@ -126,10 +125,9 @@ read_in<-function(path,Output_path){
             stop("The file contains fewer then 1000 rows. You should use one with more.",.call = F)
           }
           
-          #Bennen der Spalten und entfernen aller Events die nicht 4624 entsprechen
+          # Rename columns and delet all Events that dont fit to 4624
           colnames(data)<-c("Event_ID","Host","Time","Logon_ID","User","Source","Source_Port","Logon_Type")#ActivityID oder LogonGUID
           data<-data[(data$Event_ID==4624),]
-          #data<-transform(data,Time=as.POSIXct(Time, format = "%Y-%m-%d %H:%M:%S"))
           return(data)
         }
       
@@ -139,10 +137,10 @@ read_in<-function(path,Output_path){
   
 }
 
-#Falls die Datei zu Groß ist wird diese in teile geteilt
+# If the file size is to large, read it in parts
 parted_read_in<-function(path,row_multi,back){
   tryCatch(expr = {
-    #read_in von x rows und überspringe die vorher bearbeiteten
+    # read in x rows and skip all before
     data_new<-read.csv(paste(path,"time_sort.csv",sep=""),nrows = 10000000,skip=(row_multi*10000000)-back,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
     colnames(data_new)<-c("Event_ID","Host","Time","Logon_ID","User","Source","Source_Port","Logon_Type")#ActivityID oder LogonGUID
     data_new<-data_new[(data_new$Event_ID==4624),]
@@ -159,7 +157,7 @@ parted_read_in<-function(path,row_multi,back){
   })
 }
 
-#Falls die Option -e angeben wurde können die Features, falls schon welche mit dem Programm extrahiert wurden, eingelesen werden 
+# If the option -e has been choosen, Features which has been created with this program can be loaded
 features_read_in<-function(path){
   if(file_ext(path)=="csv"){
     if(file.access(path,2)==-1){
@@ -178,15 +176,15 @@ features_read_in<-function(path){
   }
 }
 
-#Um redudante/unötigte Daten zu vermeiden, werden alle Nutzer, welche einer ganzen Zahl <=10000 entsprechen gelöscht
-#anschließend werden Duplikate gelöscht
+# To ignore unnecessary data all user <=10.000 will be deleted
+# Duplicates will also be deleted
 preprocessing<-function(data){
   data<-data[!(data$User %in% c(0:10000)),]
   data<-data%>% distinct(Event_ID,User,Host,Time,Source,Source_Port,Logon_Type)
   return(data)
 }
 
-#Extraktion der Features
+# Function to extract features
 feature_extraction<-function(data,parsed_arguments,split=F){
   
   view<-parsed_arguments$view
@@ -195,73 +193,72 @@ feature_extraction<-function(data,parsed_arguments,split=F){
   cores<-parsed_arguments$cores
   time_bin_size<-parsed_arguments$time_bin_size
   
-  
   functionset<-build_functionset_extraction(parsed_arguments)
   feature_function<-functionset$feature_function
   feature_namens<-functionset$feature_namens
-  Event_Typ<-functionset$Event_Typ
-  zeitfenster<-functionset$zeitfenster
+  event_type<-functionset$event_type
+  time_window<-functionset$time_window
   
-  #Damit der Prozess der Verarbeitung schneller geht wird ein Cluster mit der gegebene Anzahl erstellt
+  # Cluster out of x cores, to speed up
   cl <- makeCluster(cores)
   registerDoParallel(cl)
   
   features<-data.frame()
-  #Im Falle aus der Source view müssen die NA Values entfernt werden
+  # If source view has been choosen delet all NA values
   if(view==5){
     data<-data[(is.na(data$Source)!=T),]
   }
   
   cat("Please magnify the window big enough to present the progress bar completly.",fill=2)
   
-  #Anlegen eines Fortschrittsbalken, dieser entspricht der Menge an zu bearbeitenden Daten
+  # Create a progressbar to show progress
   rows<-nrow(data[(data$Time >=(as.Date(startdate)) & (data$Time <(as.Date(enddate)))),])
   progress<-txtProgressBar(min=0, max=rows,width = 100,style = 3, char="=", file=stderr(),title="Feature extraction:")
   processed<-0
   i<-0
   
-  #Durchäuft anschlißend abhängig von der Zeiteinheit jeden Tag/Stunde bis zur Abbruchbedingung
+  #Durchäuft anschlißend abhängig von der Zeiteinheit jeden day_feature/hour_feature bis zur Abbruchbedingung
   repeat{
-    #Extrahiert alle Daten in dem Zeitraum
-    window<-data[(data$Time >=(as_datetime(startdate) %m+% zeitfenster(i)) & (data$Time <(as_datetime(startdate)%m+% zeitfenster(i+1+time_bin_size)))),]
-    #Falls es leer ist ->überspringe
+    # Extract all data in this time window
+    window<-data[(data$Time >=(as_datetime(startdate) %m+% time_window(i)) & (data$Time <(as_datetime(startdate)%m+% time_window(i+1+time_bin_size)))),]
+    # If its empty ignore it
     if(nrow(window)>0){
-      #Extrahiert je nach Scihtweise und duplikatslos die Nutzer/Hosts/Quell-IPs
+      # Extract per view user/sources/hosts without duplicates
       iter<- distinct(window,window[[view]])
-      #Durchläuft anschließend die Liste in parallelister Form für jeden Nutzer/Host/Quell-IP
-      ergebnisse<-foreach(j=1:length(iter[,1]),.packages = c("lubridate","dplyr","hms","R.utils"),.combine = rbind) %dopar%{
-        #Extrahiert die Sichtdaten
-        data_user<-window[(window[,view]==iter[j,1]),]
-        ergebnis<-data.frame()
-        #Wendet die Funktionen für die Featureextraktion an
+      # Passes through the data for each iter
+      results<-foreach(j=1:length(iter[,1]),.packages = c("lubridate","dplyr","hms","R.utils"),.combine = rbind) %dopar%{
+        # Extract data for this view
+        data_identifier<-window[(window[,view]==iter[j,1]),]
+        result<-data.frame()
+        # Use the functions for extraction
         for(k in 1:length(feature_function)){
-          ergebnis[1,k]<-doCall(feature_function[[k]],args=list(data_user=data_user,view=view,startdate=startdate,i=i,Event_Typ=Event_Typ[[k]]),.ignoreUnusedArgs=T)
+          result[1,k]<-doCall(feature_function[[k]],args=list(data_identifier=data_identifier,view=view,startdate=startdate,i=i,event_type=event_type[[k]]),.ignoreUnusedArgs=T)
         }
-        return(ergebnis)
+        return(result)
       }
-      #Fügt das Ergebnisses jedes Durchlaufs hinzu
-      features<-rbind(features,ergebnisse)
+      # Add the results per round
+      features<-rbind(features,results)
       
-      #Erhöht die bereits durch itertriten Datensätze & gibt es aus
+      # Shows progress
       processed<-processed+nrow(window)
       setTxtProgressBar(progress,processed,title="Feature extraction:") 
       flush.console()
     }
     
-    #Abbruchbedingung
-    if((as_datetime(startdate)%m+% zeitfenster(i+1+time_bin_size))>=as_datetime(enddate)){
+    # Termination condition
+    if((as_datetime(startdate)%m+% time_window(i+1+time_bin_size))>=as_datetime(enddate)){
       break
     }
     i<-i+1+time_bin_size
   }
-  #Stoppen des Clusters
+  # Stops cluster
   stopCluster(cl)
   close(progress)
   
-  #Gibt den Features die Namen
+  # Add Featurenames
   colnames(features)<-feature_namens
   
-  #Wenn die Daten nicht gesplittet vorliegen, Cluster diese
+  # If the data isnt splitted group it
   if(split!=T && parsed_arguments$group==T){
     features<-group_up(features,view,parsed_arguments$time_bin,cores,load_model=parsed_arguments$load_model,model_path=parsed_arguments$model_path,save_model=parsed_arguments$save_model,path=parsed_arguments$path)
   }
@@ -269,97 +266,86 @@ feature_extraction<-function(data,parsed_arguments,split=F){
   return(features)
 }
 
-#Zuerst werden alle Funktionen zur Features Extraktion definiert
-Identifier<-function(data_user,view,...){
-  return(data_user[1,view])
+#############################
+# LIST OF FEATURE FUNCTIONS #
+#############################
+
+Identifier<-function(data_identifier,view,...){
+  return(data_identifier[1,view])
 }
 
-Wochentag<-function(startdate,i,...){
+weekday<-function(startdate,i,...){
   return(wday(ymd(as.Date(startdate) %m+% days(i)),week_start = getOption("lubridate.week.start",1)))
 }
 
-Stunde<-function(i,...){
+hour_feature<-function(i,...){
   return(as_hms(((i)%%24)*60*60) )
 }
 
-Tag<-function(startdate,i,...){
+day_feature<-function(startdate,i,...){
   return(as_date((as.Date(startdate) %m+% hours((i)))))
 }
 
-Tag_2<-function(startdate,i,...){
+day_feature_2<-function(startdate,i,...){
   return(as_date((as.Date(startdate) %m+% days((i)))))
 }
 
-Anzahl_Events<-function(data_user,...){
-  return(nrow(data_user))
+Anzahl_Events<-function(data_identifier,...){
+  return(nrow(data_identifier))
 }
 
 
-Anteil_Event<-function(data_user,Event_Typ,...){
-  return(nrow(data_user[(data_user$Logon_Type %in% Event_Typ),])/nrow(data_user))
+Anteil_Event<-function(data_identifier,event_type,...){
+  return(nrow(data_identifier[(data_identifier$Logon_Type %in% event_type),])/nrow(data_identifier))
 }
 
-Events_per_Second<-function(data_user,...){
-  anzahl<-nrow(data_user)
+Events_per_Second<-function(data_identifier,...){
+  anzahl<-nrow(data_identifier)
   if(anzahl==1){
     return(0)
-  }else if(as.numeric(difftime(max(data_user[,3]),min(data_user[,3]),units = "secs"))==0){
+  }else if(as.numeric(difftime(max(data_identifier[,3]),min(data_identifier[,3]),units = "secs"))==0){
     return(1)
   }else{
-    return(anzahl/as.numeric(difftime(max(data_user$Time),min(data_user$Time),units = "secs")))
+    return(anzahl/as.numeric(difftime(max(data_identifier$Time),min(data_identifier$Time),units = "secs")))
   }
 }
 
-Hosts_per_X<-function(data_user,view,...){
-  return((data_user%>% distinct(Host,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
+Hosts_per_X<-function(data_identifier,view,...){
+  return((data_identifier%>% distinct(Host,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
 }
 
-Sources_per_X<-function(data_user,view,...){
-  return((data_user%>% distinct(Source,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
+Sources_per_X<-function(data_identifier,view,...){
+  return((data_identifier%>% distinct(Source,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
 }
 
-Users_per_X<-function(data_user,view,...){
-  return((data_user%>% distinct(User,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
+Users_per_X<-function(data_identifier,view,...){
+  return((data_identifier%>% distinct(User,X=.[[view]]) %>%group_by(X)%>% summarise(n()))$`n()`)
 }
 
+# ----------------------------------------------------------------------------------------------------------------------------------------------
+
+# Constructs the feature functions
 build_functionset_extraction<-function(parsed_arguments){
   
   time_bin<-parsed_arguments$time_bin
   view<-parsed_arguments$view
   days_instead<-parsed_arguments$days_instead
   
-  #Definition, welche Funktionen zur Feature Extraktion dann genutzt werden & welche Namen sie besitzen
-  #Dies dient dazu eine gewisse modulartät in den verschiedene Featuren zu schaffen
+  # Which Feature will be used, needed becuase of modularity
   feature_function<-c()
   feature_namens<-c()
   
-  #Es wird stehts ein Identifiziere mit genutzt
+  # ID will always be used
   feature_function<-append(feature_function,Identifier)
   feature_namens<-append(feature_namens,"Identifier")
 
-  #Außerdem wird stehts mindestens ein zeit Format genutzt
-  if(time_bin=="d"){
-    if(days_instead){
-      feature_function<-append(feature_function,Tag_2)
-      feature_namens<-append(feature_namens,"Tag")
-    }else{
-      feature_function<-append(feature_function,Wochentag)
-      feature_namens<-append(feature_namens,"Wochentag") 
-    }
-    zeitfenster<-days
-  }else if(time_bin=="h"){
-    feature_function<-append(feature_function,Stunde)
-    feature_namens<-append(feature_namens,"Stunde")
-    zeitfenster<-hours
-  }else{
-    feature_function<-append(feature_function,Tag)
-    feature_function<-append(feature_function,Stunde)
-    feature_namens<-append(feature_namens,c("Tag","Stunde"))
-    zeitfenster<-hours
-  }
+  # Time Features
+  time_bin_functions<-time_bin_functionset_build(time_bin,days_instead,feature_function,feature_namens)
+  feature_function<-time_bin_functions$feature_function
+  feature_namens<-time_bin_functions$feature_namens
+  time_window<-time_bin_functions$time_window
   
-  
-  #Anschließend werden die normalen Zähl Features eingeschlossen
+  # Count Features
   feature_function<-append(feature_function,Anzahl_Events)
   feature_namens<-append(feature_namens,"Anzahl_Events")
   
@@ -373,7 +359,47 @@ build_functionset_extraction<-function(parsed_arguments){
   feature_function<-append(feature_function,Events_per_Second)
   feature_namens<-append(feature_namens,"Events_per_Second")
   
-  #Anhand der Sichtweise werden dann die Sichtweise Features hinzugefügt, 2=view Host, 4= view Nutzer, 5= view Quell-IP
+  # Features per View
+  view_functions<-view_functionset_build(view,feature_function,feature_namens)
+  feature_function<-view_functions$feature_function
+  feature_namens<-view_functions$feature_namens
+  
+  # Later its needable to have an iteratble list, thats why logon type list contains unimportant information
+  event_type<-rep(list(0),length(feature_function))
+  for(z in 1:(end_typ-start_typ+1)-1){
+    event_type[[(start_typ+z)]]<-types[[z+1]]
+  }
+  
+  return(list(feature_function=feature_function,feature_namens=feature_namens,event_type=event_type,time_window=time_window))
+}
+
+# Time Feature
+time_bin_functionset_build<-function(time_bin,days_instead,feature_function,feature_namens){
+
+  if(time_bin=="d"){
+    if(days_instead){
+      feature_function<-append(feature_function,day_feature_2)
+      feature_namens<-append(feature_namens,"day")
+    }else{
+      feature_function<-append(feature_function,weekday)
+      feature_namens<-append(feature_namens,"weekday") 
+    }
+    time_window<-days
+  }else if(time_bin=="h"){
+    feature_function<-append(feature_function,hour_feature)
+    feature_namens<-append(feature_namens,"hour")
+    time_window<-hours
+  }else{
+    feature_function<-append(feature_function,day_feature)
+    feature_function<-append(feature_function,hour_feature)
+    feature_namens<-append(feature_namens,c("day","hour"))
+    time_window<-hours
+  }
+  return(list(feature_function=feature_function,feature_namens=feature_namens,time_window=time_window))
+}
+
+# View Feature
+view_functionset_build<-function(view,feature_function,feature_namens){
   if(view==2){
     feature_function<-append(feature_function,Users_per_X)
     feature_function<-append(feature_function,Sources_per_X)
@@ -387,64 +413,56 @@ build_functionset_extraction<-function(parsed_arguments){
     feature_function<-append(feature_function,Hosts_per_X)
     feature_namens<-append(feature_namens,c("Users_per_Source","Hosts_per_Source"))
   }
-  
-  #Aufgrund das bei der späteren Ausführung immer die selben Variablen übergeben werden müssen, aber eine modulare abhängigkeit besteht
-  #wird eine liste identisch lang zu der Anzahl an Featuren erstellt mit den Informatione zu den Untersuchenden LoginTypen verwendet
-  Event_Typ<-rep(list(0),length(feature_function))
-  for(z in 1:(end_typ-start_typ+1)-1){
-    Event_Typ[[(start_typ+z)]]<-types[[z+1]]
-  }
-  
-  return(list(feature_function=feature_function,feature_namens=feature_namens,Event_Typ=Event_Typ,zeitfenster=zeitfenster))
+  return(list(feature_function=feature_function,feature_namens=feature_namens))
 }
 
-#Berechnen der Mittelwertdaten
+# Calculate means
 calc_means<-function(features,view,cores){
   
-  #ignoriere Warnungen
+  # ignore warnings
   options(warn = -1)
-  #Schließe die Features aus bei den es nicht sinnvoll wäre (Kennung/Zeit)
+  # Ignore Feature like time
   tryCatch(expr = {
-    features_without_factors<-select(features,!one_of(c("Identifier","User","Tag","Wochentag","Stunde")))
+    features_without_factors<-select(features,!one_of(c("Identifier","User","day","weekday","hour")))
   })
   
-  #Extrahiere die Kennungen ohne duplikate
+  # IDs
   iter<- distinct(features,Identifier)
   
-  #Ertselle ein Cluster
+  # Cluster
   cl <- makeCluster(cores)
   registerDoParallel(cl)
   
-  #Iterriere durch die Nutzer/Hosts/Quell-IPs durch und bilde pro Nutzer pro Feature den Mittelwert
+  # Build means per User/Host/Source
   means<-foreach(j=1:length(iter[,1]),.packages = c("lubridate","dplyr"),.combine = rbind) %dopar%{
     data_iter<-features_without_factors[(features$Identifier==iter[j,1]),]
-    ergebnis<-data.frame()
+    result<-data.frame()
     for(j in 1:ncol(features_without_factors)){
-      ergebnis[1,j]<-mean(data_iter[,j])
+      result[1,j]<-mean(data_iter[,j])
     }
-    return(ergebnis)
+    return(result)
   }
   stopCluster(cl)
   
-  #Bennene die Mittelwert Features
+  # Name means
   colnames(means)<-colnames(features_without_factors)
   
-  #Gebe die Liste der Sichtweise+ Mittelwert features zurück
   return(list(iter,means))
 }
 
-#Clustern
+# Cluster
 clustern<-function(iter_means,features,k,label,load_model,model_path,save_model,path){
   
+  # If a loaded model is used, its also needed to load the old cluster
   if(load_model){
     km.res<-readRDS(file = paste(model_path,"cluster.rds",sep=""))
     groups<-data.frame(Groups=as.numeric(cl_predict(km.res,iter_means[[2]],type="class_id")))
   }else{
-    #Setze ein seed zur reproduzierbarkeit und Cluster anschlißend die Mittelwertdaten 
+    # Seed + cluster data
     set.seed(123)
     km.res <- kmeans(iter_means[[2]], k,algorithm = "Hartigan-Wong", nstart = 100)
     
-    #Extrahiere die Clusternummern aus dem Ergebniss des clusterns
+    # Extract cluster numbers as labels/feature
     groups<-data.frame(Groups=km.res[["cluster"]]) 
   }
   
@@ -452,27 +470,28 @@ clustern<-function(iter_means,features,k,label,load_model,model_path,save_model,
     saveRDS(km.res,paste(path,"model/cluster.rds",sep = ""))
   }
   
-  #Wenn es als Feature verwendet werden soll nutze Variante 1 anssonsten als Label Var 2
+  # Feature -> first conditions else as Label
   if(label==F){
-    #Füge die Kennung & Clusternummer zusammen
+    # Group ID and cluster number
     iter<-data.frame(Identifier=iter_means[[1]],Gruppe=as.factor(groups[,1]))
     
-    #Joine die Features& das vorhergehende um die Clusternummern der jeweiligen Sichtweise hinzufügen
+    # Join Features and iter to add cluster numbers
     features<-left_join(features,iter,by="Identifier")
-    #Erstelle einzigartige Kennungen=Zeilennamen (z.B. Nutzer1234.X) um sie später wieder identifizieren zu können
+    # Construct unique IDs
     uniq_rownames<-c(make.names(features[,1],unique = T))
     rownames(features)<-uniq_rownames
     features<-features[,-which(names(features) %in% c("Identifier"))]
     features<-features%>%rename(Identifier=Gruppe)
     return(features)
   }else{
-    #Falls es nur als Label verwendet werden soll, reicht es aus die Mittelwertdaten+Gruppe zusammenzufügen
+    # Use it as Label
     means_label<-data.frame(iter_means[[2]],Gruppe=as.factor(groups[,1]))
     return(means_label)
   }
 
 }
 
+# Calculates the max and min
 min_max_calc<-function(features,time_bin){
   if(time_bin=="dh"){
     start<-3
@@ -489,6 +508,7 @@ min_max_calc<-function(features,time_bin){
   return(min_max)
 }
 
+# Calcs the new min max if loaded model with existing min maxs are used
 min_max_calc_2<-function(min_max,min_max_new){
   for(i in 1:ncol(min_max)){
     min_max[i,1]<-min(min_max[i,1],min_max_new[i,1])
@@ -558,21 +578,21 @@ setup_python<-function(path){
 }
 
 #Führt das Python Funktion mit dem Isolationsbaum aus
-isolationforest<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
+isolationforest<-function(Input_path,Output_path,cores,rank,mean_rank,load_model,save_model,model_path){
   source_python(paste(Input_path,"ml/IsolationForest_Anwendung.py",sep=""))
-  isolationforest_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
+  isolationforest_exec(Input_path,Output_path,as.integer(cores),rank,mean_rank,load_model,save_model,model_path)
 }
 
 #Führt die Python Funktion mit dem kNN aus
-kNN<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
+kNN<-function(Input_path,Output_path,cores,rank,mean_rank,load_model,save_model,model_path){
   source_python(paste(Input_path,"ml/kNN_Anwendung.py",sep=""))
-  knn_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
+  knn_exec(Input_path,Output_path,as.integer(cores),rank,mean_rank,load_model,save_model,model_path)
 }
 
 #Führt die Python Funktion mit dem DAGMM aus
-dagmm<-function(Input_path,Output_path,rank,load_model,save_model,model_path){
+dagmm<-function(Input_path,Output_path,rank,mean_rank,load_model,save_model,model_path){
   source_python(paste(Input_path,"ml/DAGMM_Anwendung.py",sep=""))
-  dagmm_exec(Input_path,Output_path,rank,load_model,save_model,model_path)
+  dagmm_exec(Input_path,Output_path,rank,mean_rank,load_model,save_model,model_path)
 }
 
 #Nutzt einen Random Forest um Nutzer/hosts/Quell-IPs die viele Gruppen besuchen als ungewöhnlich einzustuffen
@@ -581,60 +601,9 @@ randomforest<-function(features,view,time_bin,cores,path,load_model,model_path,s
   means_label<-group_up(features,view,time_bin,cores,label = T,load_model,model_path,save_model,path)
   
   if(load_model){
-    model<-readRDS(paste(model_path,"model.rds",sep=""))
-    tryCatch(
-      expr = {
-        model_type<-attr(model$forest,"class")
-        if(model_type!="ranger.forest"){
-          stop("Use the correct model on load with the correct machine learning option.",.call=F)
-        }
-      }, error = function(e){
-        stop("Use the correct model on load with the correct machine learning option.",.call=F)
-      }
-    )
-    if(any((model[["forest"]][["independent.variable.names"]] %in% colnames(means_label))==F)){
-      cat("Your given model contains a feature that is note included in your extracted feature set.",fill = 1)
-    }
+    model<-load_randomforest_model(model_path)
   }else{
-    #Teilt die Mittelwertdaren in Train- und Testdaten
-    train<-means_label[sample(1:nrow(means_label),nrow(means_label)*0.7),]
-    test<-means_label[!(rownames(means_label) %in% rownames(train)),]
-    
-    #Erstellt ein Hyperparamter Netz um die "optimale" Hypperparamter zu finden
-    hyper_grid <- expand.grid(
-      mtry       = seq(2, ncol(means_label)-1, by = 1),
-      node_size  = seq(3, 9, by = 2),
-      sampe_size = c(.55, .632, .70, .80),
-      max_deph   = seq(5,14, by=2),
-      OOB_RMSE   = 0,
-      pred_test  = 0
-    )
-    
-    #Iteriert durch dieses Netz & berechnet die Accuracy
-    for(i in 1:nrow(hyper_grid)) {
-      
-      # train model
-      model <- ranger(
-        formula         = Gruppe ~ ., 
-        data            = train, 
-        num.trees       = 500,
-        mtry            = hyper_grid$mtry[i],
-        min.node.size   = hyper_grid$node_size[i],
-        sample.fraction = hyper_grid$sampe_size[i],
-        max.depth       = hyper_grid$max_deph[i],
-        seed            = 123
-      )
-      
-      # add OOB error to grid
-      hyper_grid$OOB_RMSE[i] <- sqrt(model$prediction.error)
-      preds <- predict(model, data=test,type="response")
-      conf<-confusionMatrix(preds$predictions, test$Gruppe)
-      hyper_grid$pred_test[i]<-as.numeric(conf$overall[1])
-    }
-    
-    #Sortiert das Netz nach der Accuracy
-    hyper_grid<-hyper_grid[order(hyper_grid$pred_test,decreasing = T),]
-    
+    hyper_grid<-grid_search_randomforest(means_label)
     #Ertsellt und trainiert anschließend das endültige modell mit den besten Hyperparametern
     model <- ranger(
       formula         = Gruppe ~ ., 
@@ -667,77 +636,159 @@ randomforest<-function(features,view,time_bin,cores,path,load_model,model_path,s
   result <- Identifier_Gruppe %>% distinct(Identifier,Gruppe) %>% group_by(Identifier) %>% summarise(n())
   result <- as.data.frame(result[order(result$`n()`,decreasing = T),])
   #Schreibt das Ergebniss nieder
-  write.csv(result,paste(path,"Ergebnisse.csv",sep=""),row.names = F)
+  write.csv(result,paste(path,"results.csv",sep=""),row.names = F)
+}
+
+load_randomforest_model<-function(model_path){
+  model<-readRDS(paste(model_path,"model.rds",sep=""))
+  tryCatch(
+    expr = {
+      model_type<-attr(model$forest,"class")
+      if(model_type!="ranger.forest"){
+        stop("Use the correct model on load with the correct machine learning option.",.call=F)
+      }
+    }, error = function(e){
+      stop("Use the correct model on load with the correct machine learning option.",.call=F)
+    }
+  )
+  if(any((model[["forest"]][["independent.variable.names"]] %in% colnames(means_label))==F)){
+    cat("Your given model contains a feature that is note included in your extracted feature set.",fill = 1)
+  }
+  return(model)
+}
+
+grid_search_randomforest<-function(means_label){
+  #Teilt die Mittelwertdaren in Train- und Testdaten
+  train<-means_label[sample(1:nrow(means_label),nrow(means_label)*0.7),]
+  test<-means_label[!(rownames(means_label) %in% rownames(train)),]
+  
+  #Erstellt ein Hyperparamter Netz um die "optimale" Hypperparamter zu finden
+  hyper_grid <- expand.grid(
+    mtry       = seq(2, ncol(means_label)-1, by = 1),
+    node_size  = seq(3, 9, by = 2),
+    sampe_size = c(.55, .632, .70, .80),
+    max_deph   = seq(5,14, by=2),
+    OOB_RMSE   = 0,
+    pred_test  = 0
+  )
+  
+  #Iteriert durch dieses Netz & berechnet die Accuracy
+  for(i in 1:nrow(hyper_grid)) {
+    
+    # train model
+    model <- ranger(
+      formula         = Gruppe ~ ., 
+      data            = train, 
+      num.trees       = 500,
+      mtry            = hyper_grid$mtry[i],
+      min.node.size   = hyper_grid$node_size[i],
+      sample.fraction = hyper_grid$sampe_size[i],
+      max.depth       = hyper_grid$max_deph[i],
+      seed            = 123
+    )
+    
+    # add OOB error to grid
+    hyper_grid$OOB_RMSE[i] <- sqrt(model$prediction.error)
+    preds <- predict(model, data=test,type="response")
+    conf<-confusionMatrix(preds$predictions, test$Gruppe)
+    hyper_grid$pred_test[i]<-as.numeric(conf$overall[1])
+  }
+  
+  #Sortiert das Netz nach der Accuracy
+  hyper_grid<-hyper_grid[order(hyper_grid$pred_test,decreasing = T),]
+  
+  return(hyper_grid)
 }
 
 #Zur Visualierung werden Radarplots der erkannten Anomalien erstellt+ausgeben
-visualization_results<-function(features,Output_path,NOT_RF,rank){
+visualization_results<-function(features,path,not_randomforest,rank,mean_rank){
   
-  ergebnisse<-read.csv(paste(Output_path,"Ergebnisse.csv",sep=""))
+  results<-read.csv(paste(path,"results.csv",sep=""))
   
-  if("Stunde" %in% colnames(features)){
-    features["Stunde"]<-as.numeric(seconds(as_hms(sapply(features["Stunde"],as.character))))
-    ergebnisse["Stunde"]<-as.numeric(seconds(as_hms(sapply(ergebnisse["Stunde"],as.character))))
+  if("hour" %in% colnames(features)){
+    features["hour"]<-as.numeric(seconds(as_hms(sapply(features["hour"],as.character))))
+    results["hour"]<-as.numeric(seconds(as_hms(sapply(results["hour"],as.character))))
   }
   
-  identifier<-data.frame(Identifier=sub("^X","",sub("\\.[0-9]*$","",ergebnisse[,1])))
+  identifier<-data.frame(Identifier=sub("^X","",sub("\\.[0-9]*$","",results[,1])))
   iter<-distinct(identifier,Identifier=Identifier)
-  if(NOT_RF==F || rank ==T){
+  if(not_randomforest==F || rank ==T){
     iter<-iter %>% slice(1:50)
   }
   
-  Output_path<-paste(Output_path,"Radarplots/",sep="")
-  dir.create(Output_path)
+  path<-paste(path,"Radarplots/",sep="")
+  dir.create(path)
   
   palette <- colorRampPalette(colors=c("#000000", "#FFFFF0"))
   palette_outsider<-colorRampPalette(c("red","purple"))
   par(mar = c(1, 1, 2, 1))
   par(oma=c(0,0,0,0))
+    for(i in 1:nrow(iter)){
+      create_plot(results,features,iter,i,not_randomforest,palette_outsider,palette,path,mean_rank)
+    }
+
+}
+
+create_plot<-function(results,features,iter,i,not_randomforest,palette_outsider,palette,path,mean_rank){
   tryCatch(
     expr = {
-      for(i in 1:nrow(iter)){
-        if(NOT_RF==T){
-          outsider<-grep(paste("^X",iter[i,1],"(\\.[0-9]+$){0,1}",sep=""),ergebnisse[,1],value=T)
-          insider<-grep(paste("^X",iter[i,1],"(\\.[0-9]+$){0,1}",sep=""),rownames(features),value=T) 
-          if(length(insider)>50){
-            insider<-sample(insider,50)
-          }
-          cols <- character(length(insider))
+      extracted_in_outsider<-extract_in_outsider(not_randomforest,mean_rank,iter[i,1],results,features)
+      outsider<-extracted_in_outsider$outsider
+      insider<-extracted_in_outsider$insider
+      cols<-extracted_in_outsider$cols
+      
+      if(not_randomforest){
+        insider<-subset(insider,!(insider %in% outsider))
+      }
+      
+      if(not_randomforest==T){
+        not_included<-c("Identifier","day")
+        if(mean_rank){
+          cols<-palette(length(cols))
+          plot_data<-select(features[insider,],!one_of(not_included))
         }else{
-          insider<-features[(features$Identifier==iter[i,1]),]
-          outsider<-""
-          if(nrow(insider)>50){
-            insider<-insider[sample(1:nrow(insider),50),]
-          }
-          cols <- character(nrow(insider))
-        }
-        
-        if(NOT_RF){
-          insider<-subset(insider,!(insider %in% outsider))
-        }
-        
-        if(NOT_RF==T){
           cols[1:(length(cols)-length(outsider))]<-palette((length(cols)-length(outsider)))
           cols[(length(cols)-length(outsider)+1):length(cols)]<-palette_outsider(length(outsider)) 
-          not_included<-c("User","Identifier","Tag")
           plot_data<-rbind(select(features[insider,],!one_of(not_included)),select(features[outsider,],!one_of(not_included)))
-        }else{
-          cols<-palette(nrow(insider))
-          plot_data<-insider[-c(1)]
         }
-        
-        
-        cols_in <- alpha(cols,0.2)
-        
-        jpeg(paste(Output_path,i,"_",iter[i,1],".jpg",sep=""), width = 1900, height = 1900,quality=100,pointsize = 40,res=120)
-        radarchart(plot_data,maxmin = F,axistype = 1,pcol=cols,pfcol=cols_in, plwd=1 , plty=2, cglty=1,cglwd=0.8, cglcol="#466D3A",vlcex=0.8,axislabcol="#00008B" )
-        dev.off()  
+      }else{
+        cols<-palette(nrow(insider))
+        plot_data<-insider[-c(1)]
       }
+      
+      
+      cols_in <- alpha(cols,0.2)
+      
+      jpeg(paste(path,i,"_",iter[i,1],".jpg",sep=""), width = 1900, height = 1900,quality=100,pointsize = 40,res=120)
+      radarchart(plot_data,maxmin = F,axistype = 1,pcol=cols,pfcol=cols_in, plwd=1 , plty=2, cglty=1,cglwd=0.8, cglcol="#466D3A",vlcex=0.8,axislabcol="#00008B" )
+      dev.off()  
     }, error = function(e){
-      cat("No Radarplots generated, because there is just one Feature per view to be plotted.",fill=1)
+      cat(paste("No Radarplots for ",iter[i,1]," generated, because there is just one Feature per view to be plotted.",sep=""),fill=1)
     }
   )
+}
 
+extract_in_outsider<-function(not_randomforest,mean_rank,iter,results,features){
+  if(not_randomforest==T){
+    if(mean_rank){
+      outsider<-""
+    }else{
+      outsider<-grep(paste("^X",iter,"(\\.[0-9]+$){0,1}",sep=""),results[,1],value=T)
+    }        
+    insider<-grep(paste("^X",iter,"(\\.[0-9]+$){0,1}",sep=""),rownames(features),value=T) 
+    if(length(insider)>50){
+      insider<-sample(insider,50)
+    }
+    cols <- character(length(insider))
+  }else{
+    insider<-features[(features$Identifier==iter),]
+    outsider<-""
+    if(nrow(insider)>50){
+      insider<-insider[sample(1:nrow(insider),50),]
+    }
+    cols <- character(nrow(insider))
+  }
+  return(list(outsider=outsider,insider=insider,cols=cols))
 }
 
 ###Datenanlyse Funktionen
@@ -843,7 +894,7 @@ help_output<-function(){
         "Options:",
         "",
         "--help    Help output",
-        "-da       Gives overall statictics to given data",
+        "-oa       Gives overall statictics to given data",
         "-v        Specification of the perspective with the following argument, default is User",
         "          u User   From a users point of view",
         "          h Host   From a hosts point of view",
@@ -866,7 +917,8 @@ help_output<-function(){
         "          DAGMM Deep Autoencoding Gausian Mixture Model",
         "          RF Randomforest",
         "-p        Use this to limit your cores to use. The next argument should be the logical count of cores to use, default is cores-1",
-        "-r        The output will be a complet ranked list",
+        "-r        The output will be a complet ranked list, default principle is first comes first",
+        "          m If you want to get it mean ranked ",
         "-s        Save the trained model",
         "-lm       The next argument should be the path to the directory with the trained model information",
         "-n        Plots will not be generated", fill=2)
@@ -887,13 +939,15 @@ main<-function(args){
   #   persist(ranking)
   # else
   #   persist(anomalies)
-  
-  envr_args<-args[1:grep("--args",args)]
-  args<-args[grep("--args",args)+1:length(args)]
-  
-  if(length(args)==0){
+
+  if(length(args[(grep("--args",args))])==0){
     stop("You need to hand over a dataset.",.call=F)
-  }else if(args[1]=="--help"){
+  }else{
+    envr_args<-args[1:grep("--args",args)]
+    args<-args[(grep("--args",args)+1):length(args)]
+  }
+  
+  if(args[1]=="--help"){
     help_output()
   }else if(file.exists(args[1])==F){
     stop("The file needs to exist.",.call=F)
@@ -912,7 +966,7 @@ main<-function(args){
     anomaly_detection(features,parsed_arguments)
     
     if(parsed_arguments$with_plots){
-      visualization_results(features,path,parsed_arguments$group,parsed_arguments$rank) 
+      visualization_results(features,path,parsed_arguments$group,parsed_arguments$rank,parsed_arguments$mean_rank) 
     }
     
   }
@@ -949,11 +1003,13 @@ parse_arguments <- function(args,envr_args){
   parsed_arguments$time_bin<-time_arguments$time_bin
   parsed_arguments$time_bin_size<-time_arguments$time_bin_size
   parsed_arguments$days_instead<-time_arguments$days_instead
-  time_window<-time_window_argument(args)
-  parsed_arguments$startdate<-time_window$startdate
-  parsed_arguments$enddate<-time_window$enddate
-  parsed_arguments$completely<-time_window$completely
-  parsed_arguments$rank<-rank_argument(args)
+  time_windows<-time_window_argument(args)
+  parsed_arguments$startdate<-time_windows$startdate
+  parsed_arguments$enddate<-time_windows$enddate
+  parsed_arguments$completely<-time_windows$completely
+  rank_argsuments<-rank_argument(args)
+  parsed_arguments$rank<-rank_argsuments$rank
+  parsed_arguments$mean_rank<-rank_argsuments$mean_rank
   parsed_arguments$cores<-cores_argument(args)
   loaded_model<-load_model_argument(args)
   parsed_arguments$load_model<-loaded_model$load_model
@@ -974,7 +1030,7 @@ statistics_argument<-function(args){
   
   statistics<-F
   
-  if(length(grep("-da",as.character(args)))!=0 && grep("-da",as.character(args))>2){
+  if(length(grep("-oa",as.character(args)))!=0){
     statistics<-T
   }
   return(statistics)
@@ -985,7 +1041,7 @@ view_argument<-function(args){
   view<-4
   
   if(length(grep("-v",as.character(args)))!=0){
-    if(length(args[grep("-v",as.character(args))+1])!=1){
+    if(is.na(args[grep("-v",as.character(args))+1])){
       stop("Choose one of the point of views as option (u,h,s)",.call=F)
     }else{
       if(as.character(args[grep("-v",as.character(args))+1])=="u" ||as.character(args[grep("-v",as.character(args))+1])=="h" ||as.character(args[grep("-v",as.character(args))+1])=="s" ){
@@ -1010,7 +1066,7 @@ machine_learning_argument<-function(args){
   group<-T
   
   if(length(grep("-m",as.character(args)))!=0){
-    if(length(args[grep("-m",as.character(args))+1])!=1){
+    if(is.na(args[grep("-m",as.character(args))+1])){
       stop("Choose one of the machine learning options (IF,kNN,RF)",.call=F)
     }else{
       if(as.character(args[grep("-m",as.character(args))+1])=="IF" ||as.character(args[grep("-m",as.character(args))+1])=="kNN" || as.character(args[grep("-m",as.character(args))+1])=="DAGMM" || as.character(args[grep("-m",as.character(args))+1])=="RF"){
@@ -1039,13 +1095,13 @@ time_bin_argument<-function(args){
   days_instead<-F
   
   if(length(grep("-t",as.character(args)))!=0){
-    if(length(args[grep("-t",as.character(args))+1])!=1){
+    if(is.na(args[grep("-t",as.character(args))+1])){
       stop("Choose one of the time slot options (d,h,dh)",.call=F)
     }else{
       if(as.character(args[grep("-t",as.character(args))+1])=="h" ||as.character(args[grep("-t",as.character(args))+1])=="d" ||as.character(args[grep("-t",as.character(args))+1])=="dh"){
         if(as.character(args[grep("-t",as.character(args))+1])=="d"){
           time_bin<-"d"
-          if(length(args[grep("-t",as.character(args))+2])!=0){
+          if(is.na(args[grep("-t",as.character(args))+2])==F && length(grep("-",args[grep("-t",as.character(args))+2]))==F){
             if(as.character(args[grep("-t",as.character(args))+2])=="d"){
               days_instead<-T
             }else{
@@ -1059,7 +1115,7 @@ time_bin_argument<-function(args){
             time_bin<-"dh"
           }
           
-          if(length(args[grep("-t",as.character(args))+2])!=0){
+          if(is.na(args[grep("-t",as.character(args))+2])==F && length(grep("-",args[grep("-t",as.character(args))+2]))==F){
             if(length(grep("^[0-9]*$",as.character(args[grep("-t",as.character(args))+2])))!=0){
               time_bin_size<-as.numeric(args[grep("-t",as.character(args))+2])-1
               if(time_bin_size<0 || time_bin_size >71){
@@ -1080,23 +1136,30 @@ time_bin_argument<-function(args){
 }
 
 rank_argument<-function(args){
+  rank<-F
+  mean_rank<-F
   if(length(grep("-r",as.character(args)))!=0){
+    if(is.na(args[grep("-r",as.character(args))+1])!=T && length(grep("-",args[grep("-r",as.character(args))+1]))==F){
+      if(as.character(args[grep("-r",as.character(args))+1])=="m"){
+        mean_rank<-T 
+      }else{
+        stop("Choose one of the valid rank ptions (m).",.call=F)
+      }
+    }
     rank<-T
-  }else{
-    rank<-F
   }
-  return(rank)
+  return(list(rank=rank,mean_rank=mean_rank))
 }
 
 time_window_argument<-function(args){
   completely<-F
   if(length(grep("-d",as.character(args)))!=0){
-    if(length(args[grep("-d",as.character(args))+1])!=1){
+    if(is.na(args[grep("-d",as.character(args))+1])){
       stop("Choose an option for start- and enddate (m,v)",.call=F)
     }else{
       if(as.character(args[grep("-d",as.character(args))+1])=="m" ||as.character(args[grep("-d",as.character(args))+1])=="v"){
         if(as.character(args[grep("-d",as.character(args))+1])=="m"){
-          if(length(args[grep("-d",as.character(args))+2])!=1 && length(args[grep("-d",as.character(args))+3])!=1){
+          if(is.na(args[grep("-d",as.character(args))+2]) && is.na(args[grep("-d",as.character(args))+3])){
             stop("Hand over a start- and enddate.",.call=F)
           }else{
             tryCatch(expr = {
@@ -1125,7 +1188,7 @@ time_window_argument<-function(args){
 
 cores_argument<-function(args){
   if(length(grep("-p",as.character(args)))!=0){
-    if(length(args[grep("-p",as.character(args))+1])!=1){
+    if(is.na(args[grep("-p",as.character(args))+1])){
       stop("Hand over a number of logical processors to use.",.call=F)
     }else{
       tryCatch(expr = {
@@ -1145,7 +1208,7 @@ cores_argument<-function(args){
 
 load_model_argument<-function(args){
   if(length(grep("-lm",as.character(args)))!=0){
-    if(length(args[grep("-lm",as.character(args))+1])!=1){
+    if(is.na(args[grep("-lm",as.character(args))+1])){
       stop("You need to hand over a path to the directory with the model information.",.call=F)
     }else{
       model_path<-as.character(args[grep("-lm",as.character(args))+1])
@@ -1230,19 +1293,21 @@ full_features_extraction<-function(data,parsed_arguments){
     border<-daten_analyse(data,path_statistics_after)
   }
   
-  if(parsed_arguments$completely){
-    parsed_arguments$startdate<-as_date(min(data$Time))
-    parsed_arguments$enddate<-as_date(max(data$Time))
-  }else{
-    if(parsed_arguments$statistics){
-      parsed_arguments$startdate<-border[[1]]
-      parsed_arguments$enddate<-border[[2]]
+  if(is.null(parsed_arguments$startdate)){
+    if(parsed_arguments$completely){
+      parsed_arguments$startdate<-as_date(min(data$Time))
+      parsed_arguments$enddate<-as_date(max(data$Time))
     }else{
-      timeline<-timeline_month(data)
-      border<-calc_borders(timeline)
-      parsed_arguments$startdate<-border[[1]]
-      parsed_arguments$enddate<-border[[2]]
-    }
+      if(parsed_arguments$statistics){
+        parsed_arguments$startdate<-border[[1]]
+        parsed_arguments$enddate<-border[[2]]
+      }else{
+        timeline<-timeline_month(data)
+        border<-calc_borders(timeline)
+        parsed_arguments$startdate<-border[[1]]
+        parsed_arguments$enddate<-border[[2]]
+      }
+    } 
   }
   features<-feature_extraction(data,parsed_arguments)
   write.csv(features,paste(parsed_arguments$path,"Features.csv",sep = ""))
@@ -1262,8 +1327,8 @@ parted_feature_extraction_main<-function(parsed_arguments){
   while(finished==F){
     data<-parted_read_in(parsed_arguments$path,row_multi,back)
     
-    startdatum_man<-parsed_arguments$startdate
-    enddatum_man<-parsed_arguments$enddate
+    startdate_optimized<-parsed_arguments$startdate
+    enddate_optimized<-parsed_arguments$enddate
     
     if(is.null(nrow(data))==F){
       
@@ -1301,27 +1366,27 @@ optimize_date<-function(data,parsed_arguments){
   
   if(parsed_arguments$completely!=T){
     
-    enddatum_man<-parsed_arguments$enddate
-    startdatum_man<-parsed_arguments$startdate
+    enddate_optimized<-parsed_arguments$enddate
+    startdate_optimized<-parsed_arguments$startdate
     
-    if(startdatum_man>as_date(max(data$Time))){
+    if(startdate_optimized>as_date(max(data$Time))){
       ignore<-T
-    }else if( enddatum_man<as_date(min(data$Time))){
+    }else if( enddate_optimized<as_date(min(data$Time))){
       finished<-T
       ignore<-T
-    }else if(enddatum_man>as_date(max(data$Time))){
-      enddatum_man<-as_date(max(data$Time))
+    }else if(enddate_optimized>as_date(max(data$Time))){
+      enddate_optimized<-as_date(max(data$Time))
     } 
-    if(as_date(min(data$Time))>startdatum_man){
-      startdatum_man<-as_date(min(data$Time))
+    if(as_date(min(data$Time))>startdate_optimized){
+      startdate_optimized<-as_date(min(data$Time))
     }
   }else{
-    enddatum_man<-as_date(max(data$Time))
-    startdatum_man<-as_date(min(data$Time))
+    enddate_optimized<-as_date(max(data$Time))
+    startdate_optimized<-as_date(min(data$Time))
   }
   
-  parsed_arguments$startdate<-startdatum_man
-  parsed_arguments$enddate<-enddatum_man
+  parsed_arguments$startdate<-startdate_optimized
+  parsed_arguments$enddate<-enddate_optimized
   
   return(list(parsed_arguments=parsed_arguments,ignore=ignore,finished=finished))
 }
@@ -1329,11 +1394,14 @@ optimize_date<-function(data,parsed_arguments){
 parted_feature_extraction<-function(data,features,finished,optimized_arguments,back,row_multi){
   time_bin<-optimized_arguments$time_bin
   path<-optimized_arguments$path
+  time_bin_size<-optimized_arguments$time_bin_size
   
   tryCatch(expr = {
     check<-read.csv(paste(path,"time_sort.csv",sep=""),nrows = 1,skip=(row_multi*10000000)-back+1,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F,col.names=c("Event_ID","Host","Time","Logon_ID","User","Source","Source_Port","Logon_Type"))
     if(date(data[nrow(data),3])==date(check[1,3]) && time_bin=="d"){
       data<-data[!(date(data$Time)==date(check[1,3])),]
+   # }else if(((as_datetime(data[nrow(data),3])-hours(time_bin_size+1))>=as_datetime(check[1,3])) && hour(data[nrow(data),3])==hour(check[1,3]) && (time_bin=="dh" || time_bin=="h") && optimized_arguments$time_bin_size>0){
+    #  data<-data[!(as_datetime(data$Time>=))]
     }else if(date(data[nrow(data),3])==date(check[1,3]) && hour(data[nrow(data),3])==hour(check[1,3]) && (time_bin=="dh" || time_bin=="h")){
       data<-data[!(date(data$Time)==date(check[1,3]) & hour(data[nrow(data),3])==hour(check[1,3]) ),]
     }
@@ -1356,17 +1424,18 @@ anomaly_detection<-function(features,parsed_arguments){
   save_model<-parsed_arguments$save_model
   model_path<-parsed_arguments$model_path
   rank<-parsed_arguments$rank
+  mean_rank<-parsed_arguments$mean_rank
   absolute_path<-parsed_arguments$absolute_path
   
   if(ml=="IF" || ml=="kNN" || ml=="DAGMM"){
     setup_python(absolute_path)
     tryCatch(expr = {
       if(ml=="IF"){
-        isolationforest(absolute_path,path,cores,rank,load_model,save_model,model_path)
+        isolationforest(absolute_path,path,cores,rank,mean_rank,load_model,save_model,model_path)
       }else if(ml=="kNN"){
-        kNN(absolute_path,path,cores,rank,load_model,save_model,model_path)
+        kNN(absolute_path,path,cores,rank,mean_rank,load_model,save_model,model_path)
       }else{
-        dagmm(absolute_path,path,rank,load_model,save_model,model_path)
+        dagmm(absolute_path,path,rank,mean_rank,load_model,save_model,model_path)
       }
     }, error=function(e){
       stop("An errror appeared into python script.",.call=F)

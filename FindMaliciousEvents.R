@@ -89,9 +89,7 @@ location_script<-function(file){
 read_in<-function(data_path,path){
   # R loads all data in the memory, so if the raw data it cant read all without crashing, thats why it can be splited read in
   # Read in free memory
-  mem<-system('free -m',intern=T)
-  mem<-strsplit(mem," ")
-  mem<-as.numeric(tail(mem[[2]],n=1))
+  mem<-get_free_memory()
 
   # Read in data file size
   size<-as.numeric(file.info(data_path)$size)/1000000
@@ -100,7 +98,7 @@ read_in<-function(data_path,path){
     if(file_ext(data_path)=="csv"){
       # If the user dont got enough rights, end
       if(file.access(data_path,2)==-1){
-        stop("Enter a file for which you got the rights to read.",.call=F)
+        stop("Enter a file for which you got the rights to read.")
       }
       
       # If the raw data file, occupied more than 40% of the memory -> parted read in
@@ -115,14 +113,14 @@ read_in<-function(data_path,path){
           tryCatch(expr={
             data<-read.csv(data_path,colClasses = c("integer","numeric","POSIXct","numeric","numeric","numeric","integer","integer"),header = F)
           }, error=function(e){
-            stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
+            stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.")
           },warning = function(w){
-            stop("The file needs the following columns: Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.",.call=F)
+            stop("The file needs the following columns: Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.")
           })
           
           #Wenn die Datei weniger als 1000 Einträge besitzt, wird das Programm abgebrochen
           if(nrow(data)<1000){
-            stop("The file contains fewer then 1000 rows. You should use one with more.",.call = F)
+            stop("The file contains fewer then 1000 rows. You should use one with more.")
           }
           
           # Rename columns and delet all Events that dont fit to 4624
@@ -132,9 +130,16 @@ read_in<-function(data_path,path){
         }
       
     }else{
-      stop("The specified file needs to match with one of the acceptable file formats (csv)",.call=F)
+      stop("The specified file needs to match with one of the acceptable file formats (csv).")
     }
   
+}
+
+get_free_memory<-function(){
+  mem<-system('free -m',intern=T)
+  mem<-strsplit(mem," ")
+  mem<-as.numeric(tail(mem[[2]],n=1))
+  return(mem)
 }
 
 # If the file size is to large, read it in parts
@@ -147,13 +152,13 @@ parted_read_in<-function(path,row_multi,back){
     return(data_new)
   }, error = function(e){
     if(row_multi==0){
-      stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.",.call=F)
+      stop("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.")
     }else{
       finished<-T
       return(finished) 
     }
   }, warning = function(w){
-    stop("The file needs the following columns: Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.",.call=F)
+    stop("The file needs the following columns: Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.")
   })
 }
 
@@ -161,18 +166,18 @@ parted_read_in<-function(path,row_multi,back){
 features_read_in<-function(path){
   if(file_ext(path)=="csv"){
     if(file.access(path,2)==-1){
-      stop("Enter a file for which you got the rights to read.",.call=F)
+      stop("Enter a file for which you got the rights to read.")
     }
       tryCatch(expr = {
         features<-read.csv(path,row.names = 1)
         return(features)
       }, error = function(e){
-        stop("Provide a valid, non-empty file.",.call=F)
+        stop("Provide a valid, non-empty file.")
       }, warning = function(w){
       })
     
   }else{
-    stop("The specified file needs to match with one of the acceptable file formats (csv)",.call=F)
+    stop("The specified file needs to match with one of the acceptable file formats (csv).")
   }
 }
 
@@ -451,7 +456,7 @@ calc_means<-function(features,view,cores){
 }
 
 # Cluster
-clustern<-function(iter_means,features,k,label,load_model,model_path,save_model,path){
+clustern<-function(iter_means,features,number_clusters,label,load_model,model_path,save_model,path){
   
   # If a loaded model is used, its also needed to load the old cluster
   if(load_model){
@@ -460,7 +465,7 @@ clustern<-function(iter_means,features,k,label,load_model,model_path,save_model,
   }else{
     # Seed + cluster data
     set.seed(123)
-    km.res <- kmeans(iter_means[[2]], k,algorithm = "Hartigan-Wong", nstart = 100)
+    km.res <- kmeans(iter_means[[2]], number_clusters, algorithm = "Hartigan-Wong", nstart = 100)
     
     # Extract cluster numbers as labels/feature
     groups<-data.frame(Groups=km.res[["cluster"]]) 
@@ -572,7 +577,7 @@ setup_python<-function(path){
   tryCatch(expr={
     use_python(as.character(system("which python3",intern = T)))
   },error=function(e){
-    stop("Python 3 is not installed.",.call=F)
+    stop("Python 3 is not installed.")
   })
   use_virtualenv(paste(path,"maliciousevents",sep=""))
 }
@@ -626,7 +631,7 @@ randomforest<-function(features,view,time_bin,cores,path,load_model,model_path,s
     expr = {
       preds <- predict(model, data=features[,c(colnames(means_label[-c(ncol(means_label))]))],type="response")
     }, error = function(e){
-      stop("The features of the data should be the same like the model features.",.call=F)
+      stop("The features of the data should be the same like the model features.")
     }
   )
   #Neues DataFrame mit kennung+Gruppe
@@ -645,10 +650,10 @@ load_randomforest_model<-function(model_path){
     expr = {
       model_type<-attr(model$forest,"class")
       if(model_type!="ranger.forest"){
-        stop("Use the correct model on load with the correct machine learning option.",.call=F)
+        stop("Use the correct model on load with the correct machine learning option.")
       }
     }, error = function(e){
-      stop("Use the correct model on load with the correct machine learning option.",.call=F)
+      stop("Use the correct model on load with the correct machine learning option.")
     }
   )
   if(any((model[["forest"]][["independent.variable.names"]] %in% colnames(means_label))==F)){
@@ -915,7 +920,7 @@ help_output<-function(){
         "          IF Isolation forest",
         "          kNN k-nearest-neigbhour",
         "          DAGMM Deep Autoencoding Gausian Mixture Model",
-        "          RF Randomforest",
+        "          RF Randomforest - special to rank is the only option",
         "-p        Use this to limit your cores to use. The next argument should be the logical count of cores to use, default is cores-1",
         "-r        The output will be a complet ranked list, default principle is first comes first",
         "          m If you want to get it mean ranked ",
@@ -941,7 +946,7 @@ main<-function(args){
   #   persist(anomalies)
 
   if(length(args[(grep("--args",args))])==0){
-    stop("You need to hand over a dataset.",.call=F)
+    stop("You need to hand over a dataset.")
   }else{
     envr_args<-args[1:grep("--args",args)]
     args<-args[(grep("--args",args)+1):length(args)]
@@ -950,13 +955,13 @@ main<-function(args){
   if(args[1]=="--help"){
     help_output()
   }else if(file.exists(args[1])==F){
-    stop("The file needs to exist.",.call=F)
+    stop("The file needs to exist.")
   }else if(dir.exists(args[2])==F){
-    stop("The directory needs to exists.",.call=F)
+    stop("The directory needs to exists.")
   }else{
     
     if(file.access(as.character(args[2]),c(4,2))==-1){
-      stop("Enter a location where you got the sufficient rights (w,r).",.call=F)
+      stop("Enter a location where you got the sufficient rights (w,r).")
     }
     path<-create_new_folder(args)
     load_packages()
@@ -1042,7 +1047,7 @@ view_argument<-function(args){
   
   if(length(grep("-v",as.character(args)))!=0){
     if(is.na(args[grep("-v",as.character(args))+1])){
-      stop("Choose one of the point of views as option (u,h,s)",.call=F)
+      stop("Choose one of the point of views as option (u,h,s).")
     }else{
       if(as.character(args[grep("-v",as.character(args))+1])=="u" ||as.character(args[grep("-v",as.character(args))+1])=="h" ||as.character(args[grep("-v",as.character(args))+1])=="s" ){
         if(as.character(args[grep("-v",as.character(args))+1])=="u"){
@@ -1053,7 +1058,7 @@ view_argument<-function(args){
           view<-5
         }
       }else{
-        stop("Choose one of the valid point of views as option  (u,h,s)",.call=F)
+        stop("Choose one of the valid point of views as option  (u,h,s).")
       }
     }
   }
@@ -1067,7 +1072,7 @@ machine_learning_argument<-function(args){
   
   if(length(grep("-m",as.character(args)))!=0){
     if(is.na(args[grep("-m",as.character(args))+1])){
-      stop("Choose one of the machine learning options (IF,kNN,RF)",.call=F)
+      stop("Choose one of the machine learning options (IF,kNN,RF).")
     }else{
       if(as.character(args[grep("-m",as.character(args))+1])=="IF" ||as.character(args[grep("-m",as.character(args))+1])=="kNN" || as.character(args[grep("-m",as.character(args))+1])=="DAGMM" || as.character(args[grep("-m",as.character(args))+1])=="RF"){
         if(as.character(args[grep("-m",as.character(args))+1])=="IF"){
@@ -1081,7 +1086,7 @@ machine_learning_argument<-function(args){
           group<-F
         }
       }else{
-        stop("Choose one of the valid machine learning options (IF,kNN,RF)",.call=F)
+        stop("Choose one of the valid machine learning options (IF,kNN,RF).")
       }
     }
   }
@@ -1096,7 +1101,7 @@ time_bin_argument<-function(args){
   
   if(length(grep("-t",as.character(args)))!=0){
     if(is.na(args[grep("-t",as.character(args))+1])){
-      stop("Choose one of the time slot options (d,h,dh)",.call=F)
+      stop("Choose one of the time slot options (d,h,dh).")
     }else{
       if(as.character(args[grep("-t",as.character(args))+1])=="h" ||as.character(args[grep("-t",as.character(args))+1])=="d" ||as.character(args[grep("-t",as.character(args))+1])=="dh"){
         if(as.character(args[grep("-t",as.character(args))+1])=="d"){
@@ -1105,7 +1110,7 @@ time_bin_argument<-function(args){
             if(as.character(args[grep("-t",as.character(args))+2])=="d"){
               days_instead<-T
             }else{
-              stop("The only option you can use here is d.",.call=F)
+              stop("The only option you can use here is d.")
             }
           }
         }else{
@@ -1119,16 +1124,16 @@ time_bin_argument<-function(args){
             if(length(grep("^[0-9]*$",as.character(args[grep("-t",as.character(args))+2])))!=0){
               time_bin_size<-as.numeric(args[grep("-t",as.character(args))+2])-1
               if(time_bin_size<0 || time_bin_size >71){
-                stop("Please insert a number of hours bigger then 0 and smaller then 73.",.call=F)
+                stop("Please insert a number of hours bigger then 0 and smaller then 73.")
               }
             }else{
-              stop("Please insert a number behind the hour/day-hour time bin format.",.call=F)
+              stop("Please insert a number behind the hour/day-hour time bin format.")
             }
           }else{
           }
         }
       }else{
-        stop("Choose one of the valid time slot options (d,h,dh)",.call=F)
+        stop("Choose one of the valid time slot options (d,h,dh).")
       }
     }
   }
@@ -1143,7 +1148,7 @@ rank_argument<-function(args){
       if(as.character(args[grep("-r",as.character(args))+1])=="m"){
         mean_rank<-T 
       }else{
-        stop("Choose one of the valid rank ptions (m).",.call=F)
+        stop("Choose one of the valid rank ptions (m).")
       }
     }
     rank<-T
@@ -1155,28 +1160,28 @@ time_window_argument<-function(args){
   completely<-F
   if(length(grep("-d",as.character(args)))!=0){
     if(is.na(args[grep("-d",as.character(args))+1])){
-      stop("Choose an option for start- and enddate (m,v)",.call=F)
+      stop("Choose an option for start- and enddate (m,v).")
     }else{
       if(as.character(args[grep("-d",as.character(args))+1])=="m" ||as.character(args[grep("-d",as.character(args))+1])=="v"){
         if(as.character(args[grep("-d",as.character(args))+1])=="m"){
           if(is.na(args[grep("-d",as.character(args))+2]) && is.na(args[grep("-d",as.character(args))+3])){
-            stop("Hand over a start- and enddate.",.call=F)
+            stop("Hand over a start- and enddate.")
           }else{
             tryCatch(expr = {
               startdate<-as_date(args[grep("-d",as.character(args))+2])
               enddate<-as_date(args[grep("-d",as.character(args))+3])
             }, warning = function(w){
-              stop("Hand over a valid start- and enddate.",.call=F)
+              stop("Hand over a valid start- and enddate.")
             })
             if(startdate>enddate){
-              stop("Your startdate is older then the enddate, change the information.",.call=F)
+              stop("Your startdate is older then the enddate, change the information.")
             }
           }
         }else{
           completely<-T
         }
       }else{
-        stop("Choose a valid option for the start- and enddate (m,v).",.call=F)
+        stop("Choose a valid option for the start- and enddate (m,v).")
       }
     }
   }else{
@@ -1189,15 +1194,15 @@ time_window_argument<-function(args){
 cores_argument<-function(args){
   if(length(grep("-p",as.character(args)))!=0){
     if(is.na(args[grep("-p",as.character(args))+1])){
-      stop("Hand over a number of logical processors to use.",.call=F)
+      stop("Hand over a number of logical processors to use.")
     }else{
       tryCatch(expr = {
         cores<-as.numeric(args[grep("-p",as.character(args))+1])
         if(cores>detectCores()){
-          stop("You can´t use a bigger number of logicals processors then available.",.call=F)
+          stop("You can´t use a bigger number of logicals processors then available.")
         }
       },warning=function(w){
-        stop("Insert a number of cores, based on your processor.",.call=F)
+        stop("Insert a number of cores, based on your processor.")
       })
     }
   }else{
@@ -1209,18 +1214,18 @@ cores_argument<-function(args){
 load_model_argument<-function(args){
   if(length(grep("-lm",as.character(args)))!=0){
     if(is.na(args[grep("-lm",as.character(args))+1])){
-      stop("You need to hand over a path to the directory with the model information.",.call=F)
+      stop("You need to hand over a path to the directory with the model information.")
     }else{
       model_path<-as.character(args[grep("-lm",as.character(args))+1])
       if(dir.exists(model_path)==F){
-        stop("You need to hand over an existing model directory.",.call=F)
+        stop("You need to hand over an existing model directory.")
       }
       if(file.exists(paste(model_path,"cluster.rds",sep=""))==F || (file.exists(paste(model_path,"min_max.rds",sep=""))==F && ml!="RF") || (file.exists(paste(model_path,"model.joblib",sep=""))==F && file.exists(paste(model_path,"model.rds",sep=""))==F && file.exists(paste(model_path,"DAGMM_model.index",sep=""))==F) ){
-        stop("Hand over a directory that contains the following content: (min_max.rds), cluster.rds, model.(rds/joblib/index)",.call=F)
+        stop("Hand over a directory that contains the following content: (min_max.rds), cluster.rds, model.(rds/joblib/index)")
       }
       
       if((file.exists(paste(model_path,"model.rds",sep=""))==F && ml=="RF") || (file.exists(paste(model_path,"model.rds",sep=""))==T && (ml=="IF" || ml=="kNN")) || (file.exists(paste(model_path,"DAGMM_model.index",sep=""))==F && ml=="DAGMM")){
-        stop("Use the correct model on load with the correct machine learning option.",.call=F)
+        stop("Use the correct model on load with the correct machine learning option.")
       }
       load_model<-T
     }
@@ -1269,7 +1274,7 @@ extract_features_main<-function(parsed_arguments){
       features<-full_features_extraction(data,parsed_arguments)
     }else{
       if(is.null(parsed_arguments$startdate)==T && parsed_arguments$completely==F){
-        stop("If the file is to large, hand over a start- and enddate.",.call=F)
+        stop("If the file is to large, hand over a start- and enddate.")
       }
       
       features<-parted_feature_extraction_main(parsed_arguments)
@@ -1438,7 +1443,7 @@ anomaly_detection<-function(features,parsed_arguments){
         dagmm(absolute_path,path,rank,mean_rank,load_model,save_model,model_path)
       }
     }, error=function(e){
-      stop("An errror appeared into python script.",.call=F)
+      stop("An errror appeared into python script.")
     })
   }else{
     randomforest(features,parsed_arguments$view,parsed_arguments$time_bin,cores,path,load_model,model_path,save_model)

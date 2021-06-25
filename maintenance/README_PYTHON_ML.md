@@ -5,24 +5,26 @@
 
 Add an optional console argument:
    ```sh
-   if(length(grep("-m",as.character(args)))!=0){
-   	if(as.character(args[grep("-m",as.character(args))+1])=="IF" ||as.character(args[grep("-m",as.character(args))+1])=="kNN" || as.character(args[grep("-m",as.character(args))+1])=="DAGMM" || as.character(args[grep("-m",as.character(args))+1])=="RF" || as.character(args[grep("-m",as.character(args))+1])=="YOUR NEW METHOD"){
+machine_learning_argument<-function(){
+      if(length(grep("-m",as.character(args)))!=0){
+          if(as.character(args[grep("-m",as.character(args))+1])=="IF" ||as.character(args[grep("-m",as.character(args))+1])=="kNN" || as.character(args[grep("-m",as.character(args))+1])=="DAGMM" || as.character(args[grep("-m",as.character(args))+1])=="RF" || as.character(args[grep("-m",as.character(args))+1])=="YOUR NEW METHOD"){
    		...
    	  	else if(as.character(args[grep("-m",as.character(args))+1])=="YOUR NEW METHOD"){
           			ml<-"YOUR NEW METHOD"
           		}
         		...
    	}
-   }
+      } 
+}
    ```
    
 ## Second step
 
-Add the execution function:
+Add the execution function into the anomaly_detection function:
    ```sh
    if(ml=="IF" || ml=="kNN" || ml=="DAGMM" || ml=="YOUR NEW METHOD"){
    	else if(ml=="YOUR NEW METHOD"){
-   		YOUR_NEW_METHOD(absoluter_path,path,cores,rank,load_model,save_model,model_path)
+   		YOUR_NEW_METHOD(absoluter_path,path,cores,rank,rank_mean,load_model,save_model,model_path)
    	}
    }
    ```
@@ -31,9 +33,9 @@ Add the execution function:
 
 Add the function that executes the python program:
    ```sh
-   YOUR_NEW_METHOD<-function(Input_path,Output_path,cores,rank,load_model,save_model,model_path){
+   YOUR_NEW_METHOD<-function(Input_path,Output_path,cores,rank,rank_mean,load_model,save_model,model_path){
   		source_python(paste(Input_path,"ml/YOUR_NEW_METHOD_Anwendung.py",sep=""))
-   	YOUR_NEW_METHOD_exec(Input_path,Output_path,as.integer(cores),rank,load_model,save_model,model_path)
+   	YOUR_NEW_METHOD_exec(Input_path,Output_path,as.integer(cores),rank,rank_mean,load_model,save_model,model_path)
    }
    ```
 
@@ -56,10 +58,10 @@ Add the python program to the ml directory with the following structure:
 
 	    columns = features.columns.values.tolist()
 
-	    if "Stunde" in columns:
+	    if "hour" in columns:
 		hours, features = pp.convert_hours(features)
 
-	    if "Tag" in columns:
+	    if "day" in columns:
 		days, features = pp.convert_days(features)
 
 	    if not load_model:
@@ -89,18 +91,22 @@ Add the python program to the ml directory with the following structure:
 	    # Sort the scores in the correct order
 	    features = features.sort_values(by=['scores'], ascending=False)
 
-	    if "Stunde" in columns:
-		features['Stunde'] = hours
+	    if "hour" in columns:
+		features['hour'] = hours
 
-	    if "Tag" in columns:
-		features['Tag'] = days
+	    if "day" in columns:
+		features['day'] = days
 
 	    # Write anomalies or ranks in a file
 	    if not rank:
-		features.loc[features['anomaly'] == 1].to_csv(path + 'Ergebnisse.csv')
+		features.loc[features['anomaly'] == 1].to_csv(path + 'results.csv')
 	    else:
-		res = pp.rank(features)
-		res.to_csv(path + 'Ergebnisse.csv')
+            if mean_rank:
+               res = pp.rank_mean(features)
+            else:
+               res = pp.rank_first(features)
+               
+            res.to_csv(path + 'results.csv')
 
    ```
   

@@ -20,8 +20,8 @@ class DAGMM:
     (this is UNOFFICIAL implementation)
     """
 
-    MODEL_FILENAME = "DAGMM_model"
-    SCALER_FILENAME = "DAGMM_scaler"
+    MODEL_FILENAME = "model"
+    SCALER_FILENAME = "scaler"
 
     def __init__(self, comp_hiddens, comp_activation,
                  est_hiddens, est_activation, est_dropout_ratio=0.5,

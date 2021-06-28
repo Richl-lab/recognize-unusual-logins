@@ -20,7 +20,7 @@
   * [Built With](#built-with)
 - [Getting Started](#getting-started)
   * [Prerequisites & Installation](#prerequisites---installation)
-- [Login Data](#login-data)
+- [Logon Data](#logon-data)
 - [Usage](#usage)
   * [Examples](#examples)
   * [Demo](#demo)
@@ -59,7 +59,7 @@ Configuration:
 * link to the FindMaliciousEvents program
 * create ~/.R directory for r site-packages
 
-## Login Data
+## Logon Data
 The data needs the following structure:
 | Event ID        | Host           | Time  | Logon ID        | User           | Source  | Source Port           | Logon Type  |
 | ------------- |:-------------:| :-----:| :------------- |:-------------:| :-----:|:-------------:| -----:|

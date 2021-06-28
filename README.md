@@ -9,7 +9,7 @@
     <a href="https://github.com/Richl-lab/recognize-unusual-logins/blob/main/README.md"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="">View Demo</a>
+    <a href="https://github.com/Richl-lab/recognize-unusual-logins#demo">View Demo</a>
     ·
     <a href="https://github.com/Richl-lab/recognize-unusual-logins/issues">Report Bug</a>
     ·
@@ -92,6 +92,7 @@ Find unusual logins from a existing feature set, that was create with this softw
    ```
 
 ### Demo
+![Tool Demo](https://github.com/Richl-lab/recognize-unusual-logins/blob/main/tool_demo.mp4)
    
 ## Maintenance
 If you want to add new features, see [Maintenance Directory](https://github.com/Richl-lab/recognize-unusual-logins/tree/main/maintenance). It contains a discription to add different kind of features. 

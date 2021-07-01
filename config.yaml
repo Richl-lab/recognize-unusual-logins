@@ -1,0 +1,47 @@
+# Randomforest Hyperparameter
+randomforest:
+  # Number of trees >0
+  num.trees: 500
+  # Features >0 & <=max(features)
+  mtry: 2
+  # Mininum of nodes >0
+  min.node.size: 5
+  # Samples to use >0 & <=1.0
+  sample.fraction: 0.7
+  # Maximum depth of the trees >0
+  max.depth: 3
+  seed: 123
+
+# Isolationforest Hyperparameter
+isolationforest:
+  # Number of trees >0
+  n_estimators: 50
+  # Samples to use >0 & <=1.0
+  max_samples: auto
+  # Contamination >0 & <1.0
+  contamination: 0.0001
+  # Max Features to use >0 & <=1.0
+  max_features: 1.0
+  random_state: 123
+
+# kNN Hyperparameter
+k_nearest_neigbhour:
+  # Contamination >0 & <1.0
+  contamination: 0.0001
+  # Number of neighbors >0 & <= max(samples)
+  n_neighbors: 20
+  # Methode to calculate distance
+  method: mean
+  # Algorithm to optimize
+  algorithm: ball_tree
+
+# DAGMM Hyperparameter
+deep_autoencoding_gaussian_mixture_model:
+  comp_hiddens: [ 24, 16, 8, 4, 2 ]
+  comp_activation: tanh
+  est_hiddens: [ 16, 8, 4 ]
+  est_activation: tanh
+  est_dropout_ratio: 0.25
+  epoch_size: 2500
+  minibatch_size: 512
+  random_seed: 123

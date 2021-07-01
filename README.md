@@ -40,6 +40,7 @@ This tool is used to find anomalies or suspicious login events.
 ## Getting Started
 
 ### Prerequisites & Installation
+This tool will only work in linux (tested with Ubuntu 20.04).
 To use the tool, R and Python 3.8 needs to be installed. Furthermore is a requirement an existing python enviroment in the folder with conditions of the requirements.txt.
 
 To install and configure use the following script:

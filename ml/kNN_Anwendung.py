@@ -4,7 +4,7 @@
 # Stand:            16.06.2021
 
 # Funktionsdefinition für den knn mit Ausgabepfad+Anzahl an Kernen
-def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path):
+def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path, config_data=None):
     # Laden der nötigen Bibliotheken
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
@@ -27,8 +27,13 @@ def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, 
         days, features = pp.convert_days(features)
 
     if not load_model:
-        # Erstellen des Models IF mit den Hyperparametern
-        model = KNN(contamination=0.0001, n_neighbors=20, method="mean", algorithm="ball_tree", n_jobs=cores)
+        if config_data is not None:
+            model = KNN(contamination=config_data['contamination'], n_neighbors=config_data['n_neighbors'],
+                        method=config_data['method'], algorithm=config_data['algorithm'], n_jobs=cores,
+                        metric=config_data['metric'])
+        else:
+            # Erstellen des Models IF mit den Hyperparametern
+            model = KNN(contamination=0.0001, n_neighbors=20, method="mean", algorithm="ball_tree", n_jobs=cores)
 
         # Trainieren des kNNs
         model.fit(features)

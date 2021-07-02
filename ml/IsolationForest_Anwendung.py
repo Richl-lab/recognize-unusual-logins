@@ -1,15 +1,16 @@
-# Modul:            Praxis-/Bachelorprojekt
+﻿# Modul:            Praxis-/Bachelorprojekt
 # Thema:            Detect Malicious Login Events
 # Autorenschaft:    Richard Mey <richard.mey@syss.de>
 # Stand:            16.06.2021
 
 # https://blog.paperspace.com/anomaly-detection-isolation-forest/
 # Funktionsdefinition für den Isolationforest mit Ausgabepfad+Anzahl an Kernen
-def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path):
+def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path,
+                         config_data=None):
     # Laden der nötigen Bibliotheken
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
-    sys.path.insert(1, source_path+"ml/")
+    sys.path.insert(1, source_path + "ml/")
 
     import pandas as pd
     from sklearn.ensemble import IsolationForest
@@ -29,14 +30,20 @@ def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, 
         days, features = pp.convert_days(features)
 
     if not load_model:
-        # Erstellen des Models IF mit den Hyperparametern
-        model = IsolationForest(n_estimators=50, max_samples='auto', contamination=float(0.0001), max_features=1.0,
-                                n_jobs=cores, random_state=123)
+        if config_data is not None:
+            model = IsolationForest(n_estimators=config_data['n_estimators'], max_samples=config_data['max_samples'],
+                                    contamination=float(config_data['contamination']),
+                                    max_features=config_data['max_features'],
+                                    n_jobs=cores, random_state=config_data['random_state'])
+        else:
+            # Erstellen des Models IF mit den Hyperparametern
+            model = IsolationForest(n_estimators=50, max_samples='auto', contamination=float(0.0001), max_features=1.0,
+                                    n_jobs=cores, random_state=123)
 
         # Trainieren der Bäume
         model.fit(features)
     else:
-        model = load(model_path+'model.joblib')
+        model = load(model_path + 'model.joblib')
 
         if str(type(model)) != "<class 'sklearn.ensemble._iforest.IsolationForest'>":
             print("Use the correct model on load with the correct machine learning option.")

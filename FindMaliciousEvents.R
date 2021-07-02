@@ -4,7 +4,7 @@
 # Module:            Bachelor thesis
 # Theme:             Detect Malicious Login Events
 # Author:            Richard Mey <richard.mey@syss.de>
-# Status:            25.06.2021
+# Status:            02.07.2021
 
 ###########
 # Comment #
@@ -50,11 +50,11 @@ main <- function(args) {
 }
 
 check_empty_and_split_arguments <- function(args) {
-  if (length(args[(grep("--args", args))]) == 0) {
+  if (length(args[(grep("^--args$", args))]) == 0) {
     stop_and_help("Dataset to prcoess is missing..", call. = F)
   }else {
-    envr_args <- args[1:grep("--args", args)]
-    args <- args[(grep("--args", args) + 1):length(args)]
+    envr_args <- args[1:grep("^--args$", args)]
+    args <- args[(grep("^--args$", args) + 1):length(args)]
   }
   return(list(args = args, envr_args = envr_args))
 }
@@ -135,12 +135,12 @@ stop_and_help <- function(message, call. = F, domain = NULL) {
 # function to load and activate all needed libraries
 load_libraries <- function() {
   # Download path to libraries
-  repos <- "https://cran.r-project.org/"
+  repository <- "https://cran.r-project.org/"
 
   ## Install all needed libraries
   # https://stackoverflow.com/questions/9341635/check-for-installed-packages-before-running-install-packages
   packages <- c("dplyr", "ggplot2", "tools", "lubridate", "doParallel", "reshape2", "scales", "FactoMineR", "factoextra", "R.utils", "reticulate", "RColorBrewer", "fmsb", "BBmisc", "ranger", "caret", "e1071", "clue", "yaml")
-  suppressMessages(install.packages(setdiff(packages, rownames(installed.packages())), repos = repos, quiet = T))
+  suppressMessages(install.packages(setdiff(packages, rownames(installed.packages())), repos = repository, quiet = T))
 
 
   # Load all libraries
@@ -166,9 +166,9 @@ load_libraries <- function() {
 
   # Options
   options(lubridate.week.start = 1) #weekday starts monday
-  options("scipen" = 10)
-  Sys.setenv(TZ = 'UTC')
-  pdf(NULL)
+  options("scipen" = 10)# Not realy needed, shows numbers full printed
+  Sys.setenv(TZ = 'UTC') # Set System timezone
+  pdf(NULL) # GGplot will generate pdf else
 }
 
 # Function to parse Arguments from command line
@@ -203,7 +203,7 @@ parse_arguments <- function(args, envr_args) {
   ignore_interval_users <- ignore_interval_users_argument(args)
   parsed_arguments$first_user_to_ignore <- ignore_interval_users$first_user_to_ignore
   parsed_arguments$last_user_to_ignore <- ignore_interval_users$last_user_to_ignore
-  parsed_arguments$absolute_path <- location_script(envr_args)
+  parsed_arguments$absolute_path <- detect_absolute_path_script(envr_args)
   return(parsed_arguments)
 }
 
@@ -213,9 +213,9 @@ create_output_folder <- function(args) {
   if (dir.exists(path) == F) {
     dir.create(path)
   }else {
-    dir <- list.dirs(as.character(args[2]), recursive = F, full.names = F)
-    dir_ME <- grep("FindMaliciousEvents_[0-9]+", dir)
-    path <- paste0(as.character(args[2]), "/FindMaliciousEvents_", (max(as.numeric(sub("[^0-9]+", "", dir[dir_ME]))) + 1), "/")
+    directory <- list.dirs(as.character(args[2]), recursive = F, full.names = F)
+    findmaliciousevents_directorys <- grep("FindMaliciousEvents_[0-9]+", directory)
+    path <- paste0(as.character(args[2]), "/FindMaliciousEvents_", (max(as.numeric(sub("[^0-9]+", "", directory[findmaliciousevents_directorys]))) + 1), "/")
     dir.create(path)
   }
   return(path)
@@ -231,7 +231,7 @@ statistics_argument <- function(args) {
 
   statistics <- F
 
-  if (length(grep("-oa", as.character(args))) != 0) {
+  if (length(grep("^-oa$", as.character(args))) != 0) {
     statistics <- T
   }
   return(statistics)
@@ -242,16 +242,16 @@ view_argument <- function(args) {
 
   view <- 4
 
-  if (length(grep("-v", as.character(args))) != 0) {
-    if (is.na(args[grep("-v", as.character(args)) + 1])) {
+  if (length(grep("^-v$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-v$", as.character(args)) + 1])) {
       stop_and_help("You did not specify any of the views (u,h,s).", call. = F)
     }else {
-      if (as.character(args[grep("-v", as.character(args)) + 1]) == "u" ||
-        as.character(args[grep("-v", as.character(args)) + 1]) == "h" ||
-        as.character(args[grep("-v", as.character(args)) + 1]) == "s") {
-        if (as.character(args[grep("-v", as.character(args)) + 1]) == "u") {
+      if (as.character(args[grep("^-v$", as.character(args)) + 1]) == "u" ||
+        as.character(args[grep("^-v$", as.character(args)) + 1]) == "h" ||
+        as.character(args[grep("^-v$", as.character(args)) + 1]) == "s") {
+        if (as.character(args[grep("^-v$", as.character(args)) + 1]) == "u") {
           view <- 4
-        }else if (as.character(args[grep("-v", as.character(args)) + 1]) == "h") {
+        }else if (as.character(args[grep("^-v$", as.character(args)) + 1]) == "h") {
           view <- 2
         }else {
           view <- 5
@@ -270,26 +270,26 @@ machine_learning_argument <- function(args) {
   machine_learning <- "IF"
   group <- T
 
-  if (length(grep("-m", as.character(args))) != 0) {
-    if (is.na(args[grep("-m", as.character(args)) + 1])) {
+  if (length(grep("^-m$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-m$", as.character(args)) + 1])) {
       stop_and_help("You did not specify any of the machine learning options (IF,kNN,DAGMM,RF).", call. = F)
     }else {
-      if (as.character(args[grep("-m", as.character(args)) + 1]) == "IF" ||
-        as.character(args[grep("-m", as.character(args)) + 1]) == "kNN" ||
-        as.character(args[grep("-m", as.character(args)) + 1]) == "DAGMM" ||
-        as.character(args[grep("-m", as.character(args)) + 1]) == "RF") {
-        if (as.character(args[grep("-m", as.character(args)) + 1]) == "IF") {
+      if (as.character(args[grep("^-m$", as.character(args)) + 1]) == "IF" ||
+        as.character(args[grep("^-m$", as.character(args)) + 1]) == "kNN" ||
+        as.character(args[grep("^-m$", as.character(args)) + 1]) == "DAGMM" ||
+        as.character(args[grep("^-m$", as.character(args)) + 1]) == "RF") {
+        if (as.character(args[grep("^-m$", as.character(args)) + 1]) == "IF") {
           machine_learning <- "IF"
-        }else if (as.character(args[grep("-m", as.character(args)) + 1]) == "kNN") {
+        }else if (as.character(args[grep("^-m$", as.character(args)) + 1]) == "kNN") {
           machine_learning <- "kNN"
-        }else if (as.character(args[grep("-m", as.character(args)) + 1]) == "DAGMM") {
+        }else if (as.character(args[grep("^-m$", as.character(args)) + 1]) == "DAGMM") {
           machine_learning <- "DAGMM"
         }else {
           machine_learning <- "RF"
           group <- F
         }
       }else {
-        stop_and_help("ou did not specify any of valid machine learning options (IF,kNN,DAGMM,RF).", call. = F)
+        stop_and_help("You did not specify any of valid machine learning options (IF,kNN,DAGMM,RF).", call. = F)
       }
     }
   }
@@ -301,7 +301,7 @@ config_argument <- function(args) {
 
   config <- F
 
-  if (length(grep("-c", as.character(args))) != 0) {
+  if (length(grep("^-c$", as.character(args))) != 0) {
     config <- T
   }
   return(config)
@@ -314,32 +314,32 @@ time_bin_argument <- function(args) {
   time_bin_size <- 0
   days_instead <- F
 
-  if (length(grep("-t", as.character(args))) != 0) {
-    if (is.na(args[grep("-t", as.character(args)) + 1])) {
-      stop_and_help("Cou did not specify any of time slot options (d,h,dh).", call. = F)
+  if (length(grep("^-t$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-t$", as.character(args)) + 1])) {
+      stop_and_help("You did not specify any of time slot options (d,h,dh).", call. = F)
     }else {
-      if (as.character(args[grep("-t", as.character(args)) + 1]) == "h" ||
-        as.character(args[grep("-t", as.character(args)) + 1]) == "d" ||
-        as.character(args[grep("-t", as.character(args)) + 1]) == "dh") {
-        if (as.character(args[grep("-t", as.character(args)) + 1]) == "d") {
+      if (as.character(args[grep("^-t$", as.character(args)) + 1]) == "h" ||
+        as.character(args[grep("^-t$", as.character(args)) + 1]) == "d" ||
+        as.character(args[grep("^-t$", as.character(args)) + 1]) == "dh") {
+        if (as.character(args[grep("^-t$", as.character(args)) + 1]) == "d") {
           time_bin <- "d"
-          if (is.na(args[grep("-t", as.character(args)) + 2]) == F && length(grep("-", args[grep("-t", as.character(args)) + 2])) == F) {
-            if (as.character(args[grep("-t", as.character(args)) + 2]) == "d") {
+          if (is.na(args[grep("^-t$", as.character(args)) + 2]) == F && length(grep("-", args[grep("^-t$", as.character(args)) + 2])) == F) {
+            if (as.character(args[grep("^-t$", as.character(args)) + 2]) == "d") {
               days_instead <- T
             }else {
               stop_and_help("The only option you can use here is d.", call. = F)
             }
           }
         }else {
-          if (as.character(args[grep("-t", as.character(args)) + 1]) == "h") {
+          if (as.character(args[grep("^-t$", as.character(args)) + 1]) == "h") {
             time_bin <- "h"
           }else {
             time_bin <- "dh"
           }
 
-          if (is.na(args[grep("-t", as.character(args)) + 2]) == F && length(grep("-", args[grep("-t", as.character(args)) + 2])) == F) {
-            if (length(grep("^[0-9]*$", as.character(args[grep("-t", as.character(args)) + 2]))) != 0) {
-              time_bin_size <- as.numeric(args[grep("-t", as.character(args)) + 2]) - 1
+          if (is.na(args[grep("^-t$", as.character(args)) + 2]) == F && length(grep("-", args[grep("^-t$", as.character(args)) + 2])) == F) {
+            if (length(grep("^[0-9]*$", as.character(args[grep("^-t$", as.character(args)) + 2]))) != 0) {
+              time_bin_size <- as.numeric(args[grep("^-t$", as.character(args)) + 2]) - 1
               if (time_bin_size < 0 || time_bin_size > 71) {
                 stop_and_help("The number of hours need to be, bigger then 0 and smaller then 73.", call. = F)
               }
@@ -361,9 +361,9 @@ time_bin_argument <- function(args) {
 rank_argument <- function(args) {
   rank <- F
   mean_rank <- F
-  if (length(grep("-r", as.character(args))) != 0) {
-    if (is.na(args[grep("-r", as.character(args)) + 1]) != T && length(grep("-", args[grep("-r", as.character(args)) + 1])) == F) {
-      if (as.character(args[grep("-r", as.character(args)) + 1]) == "m") {
+  if (length(grep("^-r$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-r$", as.character(args)) + 1]) != T && length(grep("-", args[grep("^-r$", as.character(args)) + 1])) == F) {
+      if (as.character(args[grep("^-r$", as.character(args)) + 1]) == "m") {
         mean_rank <- T
       }else {
         stop_and_help("You did not specify any of the valid rank ptions (m).", call. = F)
@@ -377,20 +377,20 @@ rank_argument <- function(args) {
 # Return time window argument
 time_window_argument <- function(args) {
   completely <- F
-  if (length(grep("-d", as.character(args))) != 0) {
-    if (is.na(args[grep("-d", as.character(args)) + 1])) {
-      stop_and_help("Choose an option for start- and enddate (m,v).", call. = F)
+  if (length(grep("^-d$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-d$", as.character(args)) + 1])) {
+      stop_and_help("You did not specify an option for start- and enddate (m,v).", call. = F)
     }else {
-      if (as.character(args[grep("-d", as.character(args)) + 1]) == "m" || as.character(args[grep("-d", as.character(args)) + 1]) == "v") {
-        if (as.character(args[grep("-d", as.character(args)) + 1]) == "m") {
-          if (is.na(args[grep("-d", as.character(args)) + 2]) && is.na(args[grep("-d", as.character(args)) + 3])) {
-            stop_and_help("Hand over a start- and enddate.", call. = F)
+      if (as.character(args[grep("^-d$", as.character(args)) + 1]) == "m" || as.character(args[grep("^-d$", as.character(args)) + 1]) == "v") {
+        if (as.character(args[grep("^-d$", as.character(args)) + 1]) == "m") {
+          if (is.na(args[grep("^-d$", as.character(args)) + 2]) && is.na(args[grep("^-d$", as.character(args)) + 3])) {
+            stop_and_help("Missing start- and enddate.", call. = F)
           }else {
             tryCatch(expr = {
-              startdate <- as_date(args[grep("-d", as.character(args)) + 2])
-              enddate <- as_date(args[grep("-d", as.character(args)) + 3])
+              startdate <- as_date(args[grep("^-d$", as.character(args)) + 2])
+              enddate <- as_date(args[grep("^-d$", as.character(args)) + 3])
             }, warning = function(w) {
-              stop_and_help("Hand over a valid start- and enddate.", call. = F)
+              stop_and_help("Missing a valid start- and enddate.", call. = F)
             })
             if (startdate > enddate) {
               stop_and_help("Your startdate is older then the enddate, change the information.", call. = F)
@@ -400,7 +400,7 @@ time_window_argument <- function(args) {
           completely <- T
         }
       }else {
-        stop_and_help("Choose a valid option for the start- and enddate (m,v).", call. = F)
+        stop_and_help("You did not specify a valid option for the start- and enddate (m,v).", call. = F)
       }
     }
   }else {
@@ -412,19 +412,19 @@ time_window_argument <- function(args) {
 
 # Return core argument
 cores_argument <- function(args) {
-  if (length(grep("-p", as.character(args))) != 0) {
-    if (is.na(args[grep("-p", as.character(args)) + 1])) {
-      stop_and_help("Hand over a number of logical processors to use.", call. = F)
+  if (length(grep("^-p$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-p$", as.character(args)) + 1])) {
+      stop_and_help("Missing a number of logical processors to use.", call. = F)
     }else {
       tryCatch(expr = {
-        cores <- as.numeric(args[grep("-p", as.character(args)) + 1])
+        cores <- as.numeric(args[grep("^-p$", as.character(args)) + 1])
         if (cores > detectCores()) {
           stop_and_help("You can´t use a bigger number of logicals processors then available.", call. = F)
         }else if (cores < 1) {
           stop_and_help("You can´t use a smaller number of logicals processors then one.", call. = F)
         }
       }, warning = function(w) {
-        stop_and_help("Insert a number of cores, based on your processor.", call. = F)
+        stop_and_help("You did not specify a number of cores, based on your processor.", call. = F)
       })
     }
   }else {
@@ -435,26 +435,26 @@ cores_argument <- function(args) {
 
 # Return load model arguemnts
 load_model_argument <- function(args) {
-  if (length(grep("-lm", as.character(args))) != 0) {
-    if (is.na(args[grep("-lm", as.character(args)) + 1])) {
-      stop_and_help("You need to hand over a path to the directory with the model information.", call. = F)
+  if (length(grep("^-lm$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-lm$", as.character(args)) + 1])) {
+      stop_and_help("Missing a path to the directory with the model information.", call. = F)
     }else {
-      model_path <- as.character(args[grep("-lm", as.character(args)) + 1])
+      model_path <- as.character(args[grep("^-lm$", as.character(args)) + 1])
       if (dir.exists(model_path) == F) {
-        stop_and_help("You need to hand over an existing model directory.", call. = F)
+        stop_and_help("You did not specify an existing model directory.", call. = F)
       }
       if (file.exists(paste0(model_path, "cluster.rds")) == F ||
         (file.exists(paste0(model_path, "min_max.rds")) == F && machine_learning != "RF") ||
         (file.exists(paste0(model_path, "model.joblib")) == F &&
           file.exists(paste0(model_path, "model.rds")) == F &&
           file.exists(paste0(model_path, "model.index")) == F)) {
-        stop_and_help("Hand over a directory that contains the following content: (min_max.rds), cluster.rds, model.(rds/joblib/index). ", call. = F)
+        stop_and_help("Missing a directory that contains the following content: (min_max.rds), cluster.rds, model.(rds/joblib/index). ", call. = F)
       }
 
       if ((file.exists(paste0(model_path, "model.rds")) == F && machine_learning == "RF") ||
         (file.exists(paste0(model_path, "model.rds")) == T && (machine_learning == "IF" || machine_learning == "kNN")) ||
         (file.exists(paste0(model_path, "model.index")) == F && machine_learning == "DAGMM")) {
-        stop_and_help("Use the correct model on load with the correct machine learning option.", call. = F)
+        stop_and_help("The loaded model is not compatible with the machine learning option.", call. = F)
       }
       load_model <- T
     }
@@ -467,7 +467,7 @@ load_model_argument <- function(args) {
 
 # Return save model argument
 save_model_argument <- function(args) {
-  if (length(grep("-s", as.character(args))) != 0) {
+  if (length(grep("^-s$", as.character(args))) != 0) {
     save_model <- T
     dir.create(paste0(path, "model/"))
   }else {
@@ -478,7 +478,7 @@ save_model_argument <- function(args) {
 
 # With out plots argument
 with_plots_argument <- function(args) {
-  if (length(grep("-n", as.character(args))) != 0) {
+  if (length(grep("^-n$", as.character(args))) != 0) {
     with_plots <- F
   }else {
     with_plots <- T
@@ -488,7 +488,7 @@ with_plots_argument <- function(args) {
 
 # Extracted Feature Argument
 extracted_features_argument <- function(args) {
-  if (length(grep("-e", as.character(args))) != 0) {
+  if (length(grep("^-e$", as.character(args))) != 0) {
     extracted_features <- T
   }else {
     extracted_features <- F
@@ -501,19 +501,19 @@ ignore_interval_users_argument <- function(args) {
   first_user_to_ignore <- 0
   last_user_to_ignore <- 10000
 
-  if (length(grep("-i", as.character(args))) != 0) {
-    if (is.na(args[grep("-i", as.character(args)) + 1]) || is.na(args[grep("-i", as.character(args)) + 2])) {
+  if (length(grep("^-i$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-i$", as.character(args)) + 1]) || is.na(args[grep("^-i$", as.character(args)) + 2])) {
       stop_and_help("You did not specify an interval for first- and last users to ignore.", call. = F)
     }else {
-      if (length(grep("[-0-9]*", args[grep("-i", as.character(args)) + 1])) == 0 || length(grep("[-0-9]*", args[grep("-i", as.character(args)) + 2])) == 0) {
+      if (length(grep("[-0-9]*", args[grep("^-i$", as.character(args)) + 1])) == 0 || length(grep("[-0-9]*", args[grep("^-i$", as.character(args)) + 2])) == 0) {
         stop_and_help("You did not specify a numeric interval for first- and last users to ignore.", call. = F)
       }else {
         tryCatch(
           expr = {
-            first_user_to_ignore <- as.integer(args[grep("-i", as.character(args)) + 1])
-            last_user_to_ignore <- as.integer(args[grep("-i", as.character(args)) + 2])
+            first_user_to_ignore <- as.integer(args[grep("^-i$", as.character(args)) + 1])
+            last_user_to_ignore <- as.integer(args[grep("^-i$", as.character(args)) + 2])
           }, warning = function(w) {
-            stop_and_help(paste("One of the inserted numbers", args[grep("-i", as.character(args)) + 1], ",", args[grep("-i", as.character(args)) + 2], "for the first and last user to ignore, is not numeric."), call. = F)
+            stop_and_help(paste("One of the inserted numbers", args[grep("^-i$", as.character(args)) + 1], ",", args[grep("^-i$", as.character(args)) + 2], "for the first and last user to ignore, is not numeric."), call. = F)
           }
         )
       }
@@ -532,7 +532,7 @@ extract_features_from_file <- function(parsed_arguments) {
       features <- extract_features(data, parsed_arguments)
     }else {
       if (is.null(parsed_arguments$startdate) == T && parsed_arguments$completely == F) {
-        stop_and_help("If the file is to large, hand over a start- and enddate.", call. = F)
+        stop_and_help("Missing a start- and enddate, if the file is to large to be splitted.", call. = F)
       }
       # TODO=loop{edges,extract features)
       features <- feature_extraction_parted_from_file(parsed_arguments)
@@ -546,17 +546,17 @@ read_in_features_from_file <- function(path) {
   if (file_ext(path) == "csv") {
     read_permission <- 4
     if (file.access(path, read_permission) == -1) {
-      stop_and_help("Enter a file for which you got the rights to read.", call. = F)
+      stop_and_help("Missing a file for which you got the rights to read.", call. = F)
     }
     tryCatch(expr = {
       features <- read.csv(path, row.names = 1)
-      possible_features <- "weekday|number_events|Proportion_[0-9_]+|hour|day|events_per_second|Identifier|Users_per_Host|Users_per_Source|Hosts_per_User|Hosts_per_Source|Sources_per_User|Sources_per_Host"
+      possible_features <- "weekday|number_events|proportion_[0-9_]+|hour|day|events_per_second|Identifier|Users_per_Host|Users_per_Source|Hosts_per_User|Hosts_per_Source|Sources_per_User|Sources_per_Host"
       if (length(grep(possible_features, colnames(features), invert = T)) != 0) {
         stop_and_help("The inserted Feature set, does not match the feature the programs generate.", call. = F)
       }
       return(features)
     }, error = function(e) {
-      stop_and_help("Provide a valid, non-empty file.", call. = F)
+      stop_and_help("The file is not empty or valid..", call. = F)
     }, warning = function(w) {
     })
 
@@ -579,7 +579,7 @@ read_in_data <- function(data_path, path) {
     # If the user dont got enough rights, end
     read_permission <- 4
     if (file.access(data_path, read_permission) == -1) {
-      stop_and_help("Enter a file for which you got the rights to read.", call. = F)
+      stop_and_help("Missing a file for which you got the rights to read.", call. = F)
     }
 
     # If the raw data file, occupied more than 40% of the memory -> parted read in
@@ -594,7 +594,7 @@ read_in_data <- function(data_path, path) {
       tryCatch(expr = {
         data <- read.csv(data_path, colClasses = c("integer", "numeric", "POSIXct", "numeric", "numeric", "numeric", "integer", "integer"), header = F)
       }, error = function(e) {
-        stop_and_help("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.", call. = F)
+        stop_and_help("Missing a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.", call. = F)
       }, warning = function(w) {
         stop_and_help("The file needs the following columns: Event_ID,Host,Time,Logon_ID,User,Source,Source Port,Logon Typ.", call. = F)
       })
@@ -634,7 +634,7 @@ parted_read_in_data <- function(path, row_multi, back) {
     return(data_new)
   }, error = function(e) {
     if (row_multi == 0) {
-      stop_and_help("Provide a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.", call. = F)
+      stop_and_help("Missing a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.", call. = F)
     }else {
       finished <- T
       return(finished)
@@ -664,7 +664,7 @@ extract_features <- function(data, parsed_arguments) {
   }
 
   if (nrow(data[(data$Time >= (as.Date(parsed_arguments$startdate)) & (data$Time < (as.Date(parsed_arguments$enddate)))),]) == 0) {
-    stop_and_help("Insert a start- and enddate, that fits to the data.", call. = F)
+    stop_and_help("Missing a start- and enddate, that fits to the data.", call. = F)
   }
 
   features <- feature_extraction(data, parsed_arguments)
@@ -680,9 +680,9 @@ set_start_and_enddate <- function(data, parsed_arguments) {
       startdate <- as_date(min(data$Time))
       enddate <- as_date(max(data$Time))
     }else {
-      border <- calculate_start_and_enddate(generate_timeline_month(data))
-      startdate <- border[[1]]
-      enddate <- border[[2]]
+      calculated_start_and_enddate <- calculate_start_and_enddate(generate_timeline_month(data))
+      startdate <- calculated_start_and_enddate[[1]]
+      enddate <- calculated_start_and_enddate[[2]]
     }
   }else {
     startdate <- parsed_arguments$startdate
@@ -734,7 +734,7 @@ feature_extraction_parted_from_file <- function(parsed_arguments) {
 
 validate_not_empty_features <- function(features) {
   if (is.null(features[1, 1])) {
-    stop_and_help("Insert a start- and enddate, that fits to the data.", call. = F)
+    stop_and_help("Missing a start- and enddate, that fits to the data.", call. = F)
   }
 }
 
@@ -929,7 +929,7 @@ build_functionset_extraction <- function(parsed_arguments) {
   start_typ <- length(feature_extractors) + 1
   for (z in 1:length(types)) {
     feature_extractors <- append(feature_extractors, proportion_event_extractor)
-    feature_namens <- append(feature_namens, paste("Proportion", paste(as.character(unlist(types[[z]])), collapse = "_"), sep = "_"))
+    feature_namens <- append(feature_namens, paste("proportion", paste(as.character(unlist(types[[z]])), collapse = "_"), sep = "_"))
   }
   end_typ <- start_typ + length(types) - 1
   feature_extractors <- append(feature_extractors, events_per_second_extractor)
@@ -1030,13 +1030,13 @@ proportion_event_extractor <- function(data_identifier, event_type, ...) {
 }
 
 events_per_second_extractor <- function(data_identifier, ...) {
-  anzahl <- nrow(data_identifier)
-  if (anzahl == 1) {
+  number_of_rows <- nrow(data_identifier)
+  if (number_of_rows == 1) {
     return(0)
   }else if (as.numeric(difftime(max(data_identifier[, 3]), min(data_identifier[, 3]), units = "secs")) == 0) {
     return(1)
   }else {
-    return(anzahl / as.numeric(difftime(max(data_identifier$Time), min(data_identifier$Time), units = "secs")))
+    return(number_of_rows / as.numeric(difftime(max(data_identifier$Time), min(data_identifier$Time), units = "secs")))
   }
 }
 
@@ -1077,7 +1077,7 @@ group_features <- function(features, view, time_bin, cores, label = F, load_mode
 
   # Save model
   if (save_model && label == F) {
-    min_max <- min_max_calc(cluserted_features, time_bin)
+    min_max <- calculate_min_max(cluserted_features, time_bin)
     saveRDS(min_max, paste0(path, "model/min_max.rds"))
   }
 
@@ -1085,12 +1085,12 @@ group_features <- function(features, view, time_bin, cores, label = F, load_mode
   if (label == F) {
     if (load_model) {
       min_max <- readRDS(paste0(model_path, "min_max.rds"))
-      min_max_new <- min_max_calc(cluserted_features, time_bin)
-      min_max <- as.numeric(unlist(min_max_calc_2(min_max, min_max_new)))
+      min_max_new <- calculate_min_max(cluserted_features, time_bin)
+      min_max <- as.numeric(unlist(calculate_from_two_min_max(min_max, min_max_new)))
       if (time_bin == "dh") {
-        cluserted_features[, 3:(ncol(features) - 1)] <- normalize_min_max(cluserted_features[, 3:(ncol(features) - 1)], min_max)
+        cluserted_features[, 3:(ncol(features) - 1)] <- complet_normalize_features(cluserted_features[, 3:(ncol(features) - 1)], min_max)
       }else {
-        cluserted_features[, 2:(ncol(features) - 1)] <- normalize_min_max(cluserted_features[, 2:(ncol(features) - 1)], min_max)
+        cluserted_features[, 2:(ncol(features) - 1)] <- complet_normalize_features(cluserted_features[, 2:(ncol(features) - 1)], min_max)
       }
     }else {
       if (time_bin == "dh") {
@@ -1180,7 +1180,7 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
 }
 
 # Calculates the max and min
-min_max_calc <- function(features, time_bin) {
+calculate_min_max <- function(features, time_bin) {
   date_and_hour <- "dh"
   if (time_bin == date_and_hour) {
     start <- 3
@@ -1198,15 +1198,16 @@ min_max_calc <- function(features, time_bin) {
 }
 
 # Calcs the new min max if loaded model with existing min maxs are used
-min_max_calc_2 <- function(min_max, min_max_new) {
-  for (i in 1:ncol(min_max)) {
-    min_max[i, 1] <- min(min_max[i, 1], min_max_new[i, 1])
-    min_max[i, 2] <- max(min_max[i, 2], min_max_new[i, 2])
+calculate_from_two_min_max <- function(min_max_loaded, min_max_new) {
+  min_max <- data.frame()
+  for (i in seq_len(ncol(min_max_loaded))) {
+    min_max[i, 1] <- min(min_max_loaded[i, 1], min_max_new[i, 1])
+    min_max[i, 2] <- max(min_max_loaded[i, 2], min_max_new[i, 2])
   }
   return(min_max)
 }
 
-normalize_2 <- function(features, min, max) {
+normalize_features <- function(features, min, max) {
 
   min_max_normalize <- function(features, min, max) {
     return((features - min) / (max - min))
@@ -1216,9 +1217,9 @@ normalize_2 <- function(features, min, max) {
 }
 
 
-normalize_min_max <- function(features, min_max) {
-  for (i in 1:ncol(features)) {
-    features[, i] <- normalize_2(features[, i], min = min_max[i], max = min_max[ncol(features) + 1])
+complet_normalize_features <- function(features, min_max) {
+  for (i in seq_len(ncol(features))) {
+    features[, i] <- normalize_features(features[, i], min = min_max[i], max = min_max[ncol(features) + 1])
   }
   return(features)
 }
@@ -1247,15 +1248,15 @@ plot_partition_logontype <- function(data, path) {
   logontype_plot <- ggplot(data = logontype, aes(x = logontype[, 1], y = logontype[, 2])) +
     geom_bar(stat = "identity") +
     xlab("Logon Type") +
-    ylab("Anzahl")
+    ylab("Count")
 
-  suppressMessages(ggsave(paste0(path, "Login_Typen.png"), logontype_plot, width = 10, dpi = 300, limitsize = F))
+  suppressMessages(ggsave(paste0(path, "Logon_type.png"), logontype_plot, width = 10, dpi = 300, limitsize = F))
 }
 
 
 write_general_infos <- function(data, path) {
-  infos <- c()
-  infos[1] <- paste("Existing Well known Source Ports:", paste(as.character(c(data[(data$Source_Port %in% c(1:1023) & is.na(data$Source_Port) != T), "Source_Port"])), collapse = ", "))
+  infos <- NULL
+  infos[1] <- paste("Existing Well known Source Ports:", paste(as.character(data[(data$Source_Port %in% 1:1023 & is.na(data$Source_Port) != T), "Source_Port"]), collapse = ", "))
   infos[2] <- paste("Number of Hosts:", nrow(group_by(data, data$Host) %>% summarise(n())))
   infos[3] <- paste("Number of Users:", nrow(group_by(data, data$User) %>% summarise(n())))
   infos[4] <- paste("Number of Source-IPs:", nrow(group_by(data, data$Source) %>% summarise(n())))
@@ -1278,17 +1279,17 @@ generate_timeline_month <- function(data) {
     }
     i <- i + 1
   }
-  colnames(timeline) <- c("Time", "Anzahl")
+  colnames(timeline) <- c("Time", "Count")
 
   return(timeline)
 }
 
 plot_timeline_month <- function(timeline, path) {
-  timeplot <- ggplot(timeline, aes(x = Time, y = Anzahl)) +
+  timeplot <- ggplot(timeline, aes(x = Time, y = Count)) +
     geom_area(fill = "#69b3a2", alpha = 0.5) +
     geom_line()
 
-  suppressMessages(ggsave(paste0(path, "Volle_Zeitreihe_in_Monaten.png"), timeplot, width = 50, dpi = 300, limitsize = F))
+  suppressMessages(ggsave(paste0(path, "Complet_timeseries_months.png"), timeplot, width = 50, dpi = 300, limitsize = F))
 }
 
 calculate_start_and_enddate <- function(timeline) {
@@ -1311,13 +1312,13 @@ generate_and_plot_timeline_day <- function(data, path, startdate, enddate) {
     i <- i + 1
   }
 
-  colnames(timeline) <- c("Time", "Anzahl")
+  colnames(timeline) <- c("Time", "Count")
 
-  timeplot <- ggplot(timeline, aes(x = Time, y = Anzahl)) +
+  timeplot <- ggplot(timeline, aes(x = Time, y = Count)) +
     geom_area(fill = "#69b3a2", alpha = 0.5) +
     geom_line()
 
-  suppressMessages(ggsave(paste0(path, "Quantil_Zeitreihe_Tage.png"), timeplot, width = 50, dpi = 300, limitsize = F))
+  suppressMessages(ggsave(paste0(path, "Quantil_timeseries_days.png"), timeplot, width = 50, dpi = 300, limitsize = F))
 }
 
 write_users_with_most_logon_proportion <- function(data, path) {
@@ -1337,25 +1338,25 @@ write_users_with_most_logon_proportion <- function(data, path) {
     }
     logons <- append(logons, "")
   }
-  write.table(logons, file = paste0(path, "users_with_most_logon_types.txt"), row.names = F, col.names = F)
+  write.table(logons, file = paste0(path, "Users_with_most_logon_types.txt"), row.names = F, col.names = F)
 }
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------
 
 # If the script start from console as link file, its needed to extract the path to the original path
-location_script <- function(file) {
+detect_absolute_path_script <- function(file) {
   # Path to link file
   file_loc <- sub("[^/]*$", "", sub("--file=", "", file[grep("--file=.*", file)]))
   if (substring(file_loc, 1, 1) == ".") {
     path_exec <- system("pwd", intern = T)
-    link_path <- paste(path_exec, substring(file_loc, 2), sep = "")
+    link_path <- paste0(path_exec, substring(file_loc, 2))
   }else {
     link_path <- substring(file_loc, 2)
   }
   # Relative path from link file to dir
-  relativ_path <- Sys.readlink(paste("/", link_path, "FindMaliciousEvents", sep = ""))
+  relativ_path <- Sys.readlink(paste0("/", link_path, "FindMaliciousEvents"))
   # Calculate absolute path
-  absolute_path <- paste(getAbsolutePath.default(sub("FindMaliciousEvents.R$", "", relativ_path), workDirectory = paste("/", link_path, sep = "")), "/", sep = "")
+  absolute_path <- paste0(getAbsolutePath.default(sub("FindMaliciousEvents.R$", "", relativ_path), workDirectory = paste("/", link_path, sep = "")), "/")
   return(absolute_path)
 }
 
@@ -1374,6 +1375,8 @@ anomaly_detection <- function(features, parsed_arguments) {
   if (parsed_arguments$config) {
     config_data <- load_machine_learning_config(parsed_arguments)
     validate_config(config_data, parsed_arguments)
+  }else {
+    config_data <- list()
   }
 
   if (machine_learning == "IF" ||
@@ -1382,15 +1385,15 @@ anomaly_detection <- function(features, parsed_arguments) {
     setup_python(absolute_path)
     tryCatch(expr = {
       switch(machine_learning,
-             "IF" = python_machine_learning_isolationforest(absolute_path, path, cores, rank, mean_rank, load_model, save_model, model_path),
-             "kNN" = python_machine_learning_kNN(absolute_path, path, cores, rank, mean_rank, load_model, save_model, model_path),
-             "DAGMM" = python_machine_learning_dagmm(absolute_path, path, rank, mean_rank, load_model, save_model, model_path)
+             "IF" = python_machine_learning_isolationforest(absolute_path, path, cores, rank, mean_rank, load_model, save_model, model_path, config_data = config_data[['isolationforest']]),
+             "kNN" = python_machine_learning_kNN(absolute_path, path, cores, rank, mean_rank, load_model, save_model, model_path, config_data = config_data[['k_nearest_neigbhour']]),
+             "DAGMM" = python_machine_learning_dagmm(absolute_path, path, rank, mean_rank, load_model, save_model, model_path, config_data = config_data[['deep_autoencoding_gaussian_mixture_model']])
       )
     }, error = function(e) {
       stop_and_help("An errror appeared into python script.", call. = F)
     })
   }else {
-    machine_learning_randomforest(features, parsed_arguments$view, parsed_arguments$time_bin, cores, path, load_model, model_path, save_model)
+    machine_learning_randomforest(features, parsed_arguments$view, parsed_arguments$time_bin, cores, path, load_model, model_path, save_model, config_data = config_data[['randomforest']])
   }
 }
 
@@ -1401,6 +1404,8 @@ load_machine_learning_config <- function(parsed_arguments) {
     stop_and_help(paste0("The config file (", config_file, ") dont exists anymore."), call. = F)
   }else if (file.access(config_file, read_permission) == -1) {
     stop_and_help(paste0("The config file (", config_file, ") dont have read permissions."), call. = F)
+  }else if (file_ext(config_file) == "yaml") {
+    stop_and_help(paste0("The config file (", config_file, ") doesnt fit to .yaml file type."), call. = F)
   }
   tryCatch(
     expr = {
@@ -1430,7 +1435,7 @@ validate_isolationforest_arguments <- function(config_data) {
 
 validate_knn_arguments <- function(config_data) {
   validate_machine_learning_method_exists(config_data, "k_nearest_neigbhour")
-  hyperparameters <- c("contamination", "n_neighbors", "method", "algorithm")
+  hyperparameters <- c("contamination", "n_neighbors", "method", "algorithm", "metric")
   validate_machine_learning_hyperparamters_exist(config_data, "k_nearest_neigbhour", hyperparameters)
 }
 
@@ -1460,32 +1465,32 @@ validate_machine_learning_hyperparamters_exist <- function(config_data, method, 
   }
 }
 
-validate_machine_learning_hyperparamters_isolationforest<-function (config_data){
-  isolationforest_config_data<-config_data[['isolationforest']]
-  validate_hyperparamter_is_integer(isolationforest_config_data,"n_estimators")
-  validate_hyperprameter_interval(isolationforest_config_data,"n_estimators",0,1000000)
+validate_machine_learning_hyperparamters_isolationforest <- function(config_data) {
+  isolationforest_config_data <- config_data[['isolationforest']]
+  validate_hyperparamter_is_integer(isolationforest_config_data, "n_estimators")
+  validate_hyperprameter_interval(isolationforest_config_data, "n_estimators", 0, 1000000)
 
 }
 
-validate_hyperparamter_is_integer<-function (method_config_data,hyperparameter){
-  if(is.numeric(method_config_data[[hyperparameter]])==F){
-  stop_and_help(paste0("The Hyperparamter ",hyperparameter," is not a number."),call.=F)
-  }else if(method_config_data[[hyperparameter]]%%1!=0){
-    stop_and_help(paste0("The Hyperparameter ",hyperparameter," is not an integer."),call.=F)
+validate_hyperparamter_is_integer <- function(method_config_data, hyperparameter) {
+  if (is.numeric(method_config_data[[hyperparameter]]) == F) {
+    stop_and_help(paste0("The Hyperparamter ", hyperparameter, " is not a number."), call. = F)
+  }else if (method_config_data[[hyperparameter]] %% 1 != 0) {
+    stop_and_help(paste0("The Hyperparameter ", hyperparameter, " is not an integer."), call. = F)
   }
 }
 
-validate_hyperparamter_is_double<-function (method_config_data,hyperparameter){
-    if(is.double(method_config_data[[hyperparameter]])==F){
-  stop_and_help(paste0("The Hyperparamter ",hyperparameter," is not a double."),call.=F)
+validate_hyperparamter_is_double <- function(method_config_data, hyperparameter) {
+  if (is.double(method_config_data[[hyperparameter]]) == F) {
+    stop_and_help(paste0("The Hyperparamter ", hyperparameter, " is not a double."), call. = F)
   }
 }
 
-validate_hyperprameter_interval<-function (method_config_data,hyperparameter,left_interval,right_interval){
-  if(method_config_data[[hyperparameter]]<=left_interval){
-      stop_and_help(paste0("The Hyperparamter ",hyperparameter," is too small."),call.=F)
-  }else if(method_config_data[[hyperparameter]]>right_interval){
-          stop_and_help(paste0("The Hyperparamter ",hyperparameter," is too big."),call.=F)
+validate_hyperprameter_interval <- function(method_config_data, hyperparameter, left_interval, right_interval) {
+  if (method_config_data[[hyperparameter]] <= left_interval) {
+    stop_and_help(paste0("The Hyperparamter ", hyperparameter, " is too small."), call. = F)
+  }else if (method_config_data[[hyperparameter]] > right_interval) {
+    stop_and_help(paste0("The Hyperparamter ", hyperparameter, " is too big."), call. = F)
   }
 }
 
@@ -1500,30 +1505,41 @@ setup_python <- function(path) {
 }
 
 # Use python function with the isolationforest
-python_machine_learning_isolationforest <- function(Input_path, Output_path, cores, rank, mean_rank, load_model, save_model, model_path) {
+python_machine_learning_isolationforest <- function(Input_path, Output_path, cores, rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/IsolationForest_Anwendung.py"))
-  isolationforest_exec(Input_path, Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path)
+  isolationforest_exec(Input_path, Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the kNN
-python_machine_learning_kNN <- function(Input_path, Output_path, cores, rank, mean_rank, load_model, save_model, model_path) {
+python_machine_learning_kNN <- function(Input_path, Output_path, cores, rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/kNN_Anwendung.py"))
-  knn_exec(Input_path, Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path)
+  knn_exec(Input_path, Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the dagmm
-python_machine_learning_dagmm <- function(Input_path, Output_path, rank, mean_rank, load_model, save_model, model_path) {
+python_machine_learning_dagmm <- function(Input_path, Output_path, rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/DAGMM_Anwendung.py"))
-  dagmm_exec(Input_path, Output_path, rank, mean_rank, load_model, save_model, model_path)
+  dagmm_exec(Input_path, Output_path, rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use function with the randomforest, to predict the number of clusters the view is visting
-machine_learning_randomforest <- function(features, view, time_bin, cores, path, load_model, model_path, save_model) {
+machine_learning_randomforest <- function(features, view, time_bin, cores, path, load_model, model_path, save_model, config_data) {
   #Clustert die Daten und gibt die Mittelwertdaten+ die Clusternummer als Label zurück
   means_label <- group_features(features, view, time_bin, cores, label = T, load_model, model_path, save_model, path)
 
   if (load_model) {
     model <- load_randomforest_model(model_path)
+  }else if (is.null(config_data) == F) {
+    model <- ranger(
+      formula = Gruppe ~ .,
+      data = means_label,
+      num.trees = config_data[['num.trees']],
+      mtry = config_data[['mtry']],
+      min.node.size = config_data[['min.node.size']],
+      sample.fraction = config_data[['sample.fraction']],
+      max.depth = config_data[['max.depth']],
+      seed = config_data[['seed']]
+    )
   }else {
     # Grid search hyperparameter
     hyper_grid <- grid_search_randomforest(means_label)
@@ -1572,10 +1588,10 @@ load_randomforest_model <- function(model_path) {
     expr = {
       model_type <- attr(model$forest, "class")
       if (model_type != "ranger.forest") {
-        stop_and_help("Use the correct model on load with the correct machine learning option.", call. = F)
+        stop_and_help("Missing the correct model on load with the correct machine learning option.", call. = F)
       }
     }, error = function(e) {
-      stop_and_help("Use the correct model on load with the correct machine learning option.", call. = F)
+      stop_and_help("Missing the correct model on load with the correct machine learning option.", call. = F)
     }
   )
   if (any((model[["forest"]][["independent.variable.names"]] %in% colnames(means_label)) == F)) {
@@ -1591,17 +1607,10 @@ grid_search_randomforest <- function(means_label) {
   test <- means_label[!(rownames(means_label) %in% rownames(train)),]
 
   # Create hyperparameter grid
-  hyper_grid <- expand.grid(
-    mtry = seq(2, ncol(means_label) - 1, by = 1),
-    node_size = seq(3, 9, by = 2),
-    sampe_size = c(.55, .632, .70, .80),
-    max_deph = seq(5, 14, by = 2),
-    OOB_RMSE = 0,
-    pred_test = 0
-  )
+  hyper_grid <- create_hypergrid_for_gridsearch(ncol(means_label))
 
   # Iterate truth the net and calculate the accuracy
-  for (i in 1:nrow(hyper_grid)) {
+  for (i in seq_len(nrow(hyper_grid))) {
 
     # Train model
     model <- ranger(
@@ -1628,13 +1637,25 @@ grid_search_randomforest <- function(means_label) {
   return(hyper_grid)
 }
 
+create_hypergrid_for_gridsearch <- function(cols_means) {
+  hyper_grid <- expand.grid(
+    mtry = seq(2, cols_means - 1, by = 1),
+    node_size = seq(3, 9, by = 2),
+    sampe_size = c(.55, .632, .70, .80),
+    max_deph = seq(5, 14, by = 2),
+    OOB_RMSE = 0,
+    pred_test = 0
+  )
+  return(hyper_grid)
+}
+
 #############
 # Visualize #
 #############
 
 visualization_results <- function(features, path, not_randomforest, rank, mean_rank) {
 
-  results <- read.csv(paste(path, "results.csv", sep = ""))
+  results <- read.csv(paste0(path, "results.csv"))
 
   if (is.na(results[1, 1]) == F) {
     if ("hour" %in% colnames(features)) {
@@ -1654,15 +1675,19 @@ visualization_results <- function(features, path, not_randomforest, rank, mean_r
 
     palette <- colorRampPalette(colors = c("#000000", "#FFFFF0"))
     palette_outsider <- colorRampPalette(c("red", "purple"))
-    par(mar = c(1, 1, 2, 1))
-    par(oma = c(0, 0, 0, 0))
-    for (i in 1:nrow(iterator)) {
+    set_plot_margin()
+    for (i in seq_len(nrow(iterator))) {
       create_plot(results, features, iterator, i, not_randomforest, palette_outsider, palette, path, mean_rank)
     }
-
+    delete_empty_directory(path)
   }else {
     cat("Nothing to plot, results are empty.", fill = 1)
   }
+}
+
+set_plot_margin <- function() {
+  par(mar = c(1, 1, 2, 1))
+  par(oma = c(0, 0, 0, 0))
 }
 
 create_plot <- function(results, features, iterator, i, not_randomforest, palette_outsider, palette, path, mean_rank) {
@@ -1725,6 +1750,12 @@ extract_insider_and_outsider <- function(not_randomforest, mean_rank, iterator, 
     colors <- character(nrow(insider))
   }
   return(list(outsider = outsider, insider = insider, colors = colors))
+}
+
+delete_empty_directory <- function(path) {
+  if (length(dir(path = path)) == 0) {
+    unlink(path, recursive = T)
+  }
 }
 
 # Calling main-function with the arguments

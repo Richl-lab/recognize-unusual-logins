@@ -4,7 +4,7 @@
 # Stand:            16.06.2021
 
 # https://github.com/tnakae/DAGMM/blob/master/Example_DAGMM.ipynb
-def dagmm_exec(source_path, path, rank, mean_rank, load_model, save_model, model_path):
+def dagmm_exec(source_path, path, rank, mean_rank, load_model, save_model, model_path, config_data=None):
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
     sys.path.insert(1, source_path + "ml/")
@@ -38,12 +38,22 @@ def dagmm_exec(source_path, path, rank, mean_rank, load_model, save_model, model
 
     column_width = len(features.columns)
 
-    model_dagmm = DAGMM(
-        comp_hiddens=[column_width, int(0.75 * column_width), int(0.5 * column_width), 4, 2],
-        comp_activation=tf.nn.tanh,
-        est_hiddens=[16, 8, 4], est_activation=tf.nn.tanh, est_dropout_ratio=0.25,
-        epoch_size=2500, minibatch_size=512, random_seed=123
-    )
+    if config_data is not None:
+        model_dagmm = DAGMM(
+            comp_hiddens=config_data['comp_hiddens'],
+            comp_activation=config_data['comp_activation'],
+            est_hiddens=config_data['est_hiddens'], est_activation=config_data['est_activation'],
+            est_dropout_ratio=config_data['est_dropout_ratio'],
+            epoch_size=config_data['epoch_size'], minibatch_size=config_data['minibatch_size'],
+            random_seed=config_data['random_seed']
+        )
+    else:
+        model_dagmm = DAGMM(
+            comp_hiddens=[column_width, int(0.75 * column_width), int(0.5 * column_width), 4, 2],
+            comp_activation=tf.nn.tanh,
+            est_hiddens=[16, 8, 4], est_activation=tf.nn.tanh, est_dropout_ratio=0.25,
+            epoch_size=2500, minibatch_size=512, random_seed=123
+        )
 
     if not load_model:
         model_dagmm.fit(features)

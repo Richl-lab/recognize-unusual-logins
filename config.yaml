@@ -1,4 +1,5 @@
 # Randomforest Hyperparameter
+# https://cran.r-project.org/web/packages/ranger/ranger.pdf
 randomforest:
   # Number of trees >0
   num.trees: 500
@@ -8,11 +9,13 @@ randomforest:
   min.node.size: 5
   # Samples to use >0 & <=1.0
   sample.fraction: 0.7
-  # Maximum depth of the trees >0
+  # Maximum depth of the trees, 0 or NULL ->unlimited
   max.depth: 3
+  # NULL to use Rs gernerated seed
   seed: 123
 
 # Isolationforest Hyperparameter
+# https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html
 isolationforest:
   # Number of trees >0
   n_estimators: 50
@@ -22,26 +25,37 @@ isolationforest:
   contamination: 0.0001
   # Max Features to use >0 & <=1.0
   max_features: 1.0
+  # NULL or number
   random_state: 123
 
 # kNN Hyperparameter
+# https://pyod.readthedocs.io/en/latest/pyod.models.html?highlight=knn#pyod.models.knn.KNN
 k_nearest_neigbhour:
   # Contamination >0 & <1.0
   contamination: 0.0001
   # Number of neighbors >0 & <= max(samples)
   n_neighbors: 20
-  # Methode to calculate distance
+  # Methode to calculate distance (largest, mean, median)
   method: mean
-  # Algorithm to optimize
+  # Algorithm to optimize (ball_tree, kd_tree, brute, auto)
   algorithm: ball_tree
+  # Distance metrics from scipy or scikit
+  metric: minkowski
 
 # DAGMM Hyperparameter
+# https://github.com/tnakae/DAGMM/blob/master/dagmm/dagmm.py
 deep_autoencoding_gaussian_mixture_model:
+  # Array of ints, min = 1, last number is not mirrored
   comp_hiddens: [ 24, 16, 8, 4, 2 ]
+  # Activation function fitted to tensorflow
   comp_activation: tanh
+  # Array of ints, min = 1, last number = number of mixture model components
   est_hiddens: [ 16, 8, 4 ]
   est_activation: tanh
+  # Dropout ratio, <1.0 or NULL=0 for not applied
   est_dropout_ratio: 0.25
+  # Epochs, min=100
   epoch_size: 2500
+  # Min=1, Max=max(samples)
   minibatch_size: 512
   random_seed: 123

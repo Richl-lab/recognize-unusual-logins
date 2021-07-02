@@ -4,7 +4,7 @@
 # Stand:            16.06.2021
 
 # Funktionsdefinition für den knn mit Ausgabepfad+Anzahl an Kernen
-def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path, config_data=None):
+def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path, config_data):
     # Laden der nötigen Bibliotheken
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")

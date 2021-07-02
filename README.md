@@ -118,5 +118,9 @@ Project Link/Location:
 [Github Repository](https://github.com/Richl-lab/recognize-unusual-logins#acknowledgements)
 
 ## Acknowledgements
+* [README Template](https://github.com/othneildrew/Best-README-Template/blob/master/README.md)
+* [Pyod kNN](https://pyod.readthedocs.io/en/latest/pyod.models.html?highlight=knn#pyod.models.knn.KNN)
+* [Scikit Isolationforest](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html)
+* [DAGMM](https://github.com/tnakae/DAGMM)
 
 

@@ -40,6 +40,7 @@ k_nearest_neigbhour:
   # Algorithm to optimize (ball_tree, kd_tree, brute, auto)
   algorithm: ball_tree
   # Distance metrics from scipy or scikit
+  # 'cityblock', 'cosine', 'euclidean', 'l1', 'l2', 'manhattan','braycurtis', 'canberra', 'chebyshev', 'correlation', 'dice', 'hamming', 'jaccard', 'kulsinski', 'mahalanobis', 'matching', 'minkowski', 'rogerstanimoto', 'russellrao', 'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean', 'yule'
   metric: minkowski
 
 # DAGMM Hyperparameter
@@ -51,6 +52,8 @@ deep_autoencoding_gaussian_mixture_model:
   comp_activation: tanh
   # Array of ints, min = 1, last number = number of mixture model components
   est_hiddens: [ 16, 8, 4 ]
+  # https://www.tensorflow.org/api_docs/python/tf/keras/activations
+  # "deserialize","elu","exponential","gelu","get","hard_sigmoid","linear","relu","selu","serialize","sigmoid","softmax","softplus","softsign","swish","tanh"
   est_activation: tanh
   # Dropout ratio, <1.0 or NULL=0 for not applied
   est_dropout_ratio: 0.25

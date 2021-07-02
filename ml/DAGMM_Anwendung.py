@@ -4,7 +4,7 @@
 # Stand:            16.06.2021
 
 # https://github.com/tnakae/DAGMM/blob/master/Example_DAGMM.ipynb
-def dagmm_exec(source_path, path, rank, mean_rank, load_model, save_model, model_path, config_data=None):
+def dagmm_exec(source_path, path, rank, mean_rank, load_model, save_model, model_path, config_data):
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
     sys.path.insert(1, source_path + "ml/")
@@ -37,7 +37,6 @@ def dagmm_exec(source_path, path, rank, mean_rank, load_model, save_model, model
         days, features = pp.convert_days(features)
 
     column_width = len(features.columns)
-
     if config_data is not None:
         model_dagmm = DAGMM(
             comp_hiddens=config_data['comp_hiddens'],

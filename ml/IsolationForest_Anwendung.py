@@ -6,7 +6,7 @@
 # https://blog.paperspace.com/anomaly-detection-isolation-forest/
 # Funktionsdefinition für den Isolationforest mit Ausgabepfad+Anzahl an Kernen
 def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path,
-                         config_data=None):
+                         config_data):
     # Laden der nötigen Bibliotheken
     import sys
     sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")

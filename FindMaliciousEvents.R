@@ -85,7 +85,7 @@ help_output <- function() {
       "Options:",
       "",
       "--help    Help output",
-      "-oa       Gives overall statictics to given data",
+      "-os       Gives overall statictics to given data",
       "-v        Specification of the perspective with the following argument, default is User",
       "          u User   From a users point of view",
       "          h Host   From a hosts point of view",
@@ -102,9 +102,9 @@ help_output <- function() {
       "            enddate   Y-M-D, is not included",
       "          v Complet span",
       "-e        If you are already got an extracted feature set, you can use it instead of the data file",
-      "-m        Choose one of the given machine learning algorithm for evaluation, default is an isolation forest",
-      "          IF Isolation forest",
+      "-m        Choose one of the given machine learning algorithm for evaluation, default is an kNN",
       "          kNN k-nearest-neigbhour",
+      "          IF Isolation forest",
       "          DAGMM Deep Autoencoding Gausian Mixture Model",
       "          RF Randomforest - special to rank is the only option",
       "-c        Load the config, you can configure to use the machine learning Hyperparameters",
@@ -150,11 +150,11 @@ load_libraries <- function() {
   suppressMessages(library(lubridate, quietly = T, mask.ok = F))
   suppressMessages(library(hms))
   suppressMessages(library(doParallel))
-  suppressMessages(library(reshape2))
-  suppressMessages(library(scales))
+  #suppressMessages(library(reshape2))
+  #suppressMessages(library(scales))
   suppressMessages(library(R.utils))
   suppressMessages(library(reticulate))
-  suppressMessages(library(RColorBrewer))
+  # suppressMessages(library(RColorBrewer))
   suppressMessages(library(fmsb))
   suppressMessages(library(BBmisc))
   suppressMessages(library(ranger))
@@ -166,7 +166,7 @@ load_libraries <- function() {
 
   # Options
   options(lubridate.week.start = 1) #weekday starts monday
-  options("scipen" = 10)# Not realy needed, shows numbers full printed
+  options("scipen" = 10) # Not realy needed, shows numbers full printed
   Sys.setenv(TZ = 'UTC') # Set System timezone
   pdf(NULL) # GGplot will generate pdf else
 }
@@ -231,7 +231,7 @@ statistics_argument <- function(args) {
 
   statistics <- F
 
-  if (length(grep("^-oa$", as.character(args))) != 0) {
+  if (length(grep("^-os$", as.character(args))) != 0) {
     statistics <- T
   }
   return(statistics)
@@ -267,7 +267,7 @@ view_argument <- function(args) {
 # Return machine_learning arguments
 machine_learning_argument <- function(args) {
 
-  machine_learning <- "IF"
+  machine_learning <- "kNN"
   group <- T
 
   if (length(grep("^-m$", as.character(args))) != 0) {
@@ -725,7 +725,7 @@ feature_extraction_parted_from_file <- function(parsed_arguments) {
   validate_not_empty_features(features)
 
   if (parsed_arguments$group == T) {
-    grouped_features <- group_features(features, parsed_arguments$view, parsed_arguments$time_bin, parsed_arguments$cores, load_model = parsed_arguments$load_model, model_path = parsed_arguments$model_path, save_model = parsed_arguments$save_model, path = parsed_arguments$path)
+    grouped_features <- group_features(features, parsed_arguments$time_bin, parsed_arguments$cores, load_model = parsed_arguments$load_model, model_path = parsed_arguments$model_path, save_model = parsed_arguments$save_model, path = parsed_arguments$path)
   }
   write.csv(grouped_features, paste0(parsed_arguments$path, "Features.csv"))
 
@@ -778,7 +778,7 @@ parted_feature_extraction <- function(data, optimized_arguments, back, row_multi
   edgeless_data <- edgeless_data_finished_flag$edgeless_data
   new_back <- (10000000 - (nrow(edgeless_data))) + back
   preprocessed_data <- preprocessing(edgeless_data, optimized_arguments)
-  features <- feature_extraction(preprocessed_data, optimized_arguments, split <- T)
+  features <- feature_extraction(preprocessed_data, optimized_arguments, split = T)
   return(list(features = features, finished = edgeless_data_finished_flag$finished, back = new_back))
 }
 
@@ -805,7 +805,7 @@ delete_edges <- function(data, optimized_arguments, back, row_multi) {
 }
 
 
-# To ignore unnecessary data all user ids<=10.000 will be deleted
+# To ignore unnecessary data all user ids from first_user_to_ignore to last_user_to_ignore will be deleted
 # Duplicates will also be deleted
 preprocessing <- function(data, parsed_arguments) {
   deleted_users_data <- data[!(data$User %in% parsed_arguments$first_user_to_ignore:parsed_arguments$last_user_to_ignore),]
@@ -832,8 +832,8 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
   time_window <- functionset$time_window
 
   # Cluster out of x cores, to speed up
-  cluster <- makeCluster(cores)
-  registerDoParallel(cluster)
+  cluster_of_cores <- makeCluster(cores)
+  registerDoParallel(cluster_of_cores)
 
   features <- data.frame()
   # If source view has been choosen delet all NA values
@@ -858,12 +858,12 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
       # Passes through the data for each iterator
 
       # parallelisierung
-      results <- foreach(j = 1:length(iterator[, 1]), .packages = c("lubridate", "dplyr", "hms", "R.utils"), .combine = rbind) %dopar% {
+      results <- foreach(j = seq_along(iterator[, 1]), .packages = c("lubridate", "dplyr", "hms", "R.utils"), .combine = rbind) %dopar% {
         # Extract data for this view
         data_identifier <- window[(window[, view] == iterator[j, 1]),]
         result <- data.frame()
         # Use the functions for extraction
-        for (k in 1:length(feature_extractors)) {
+        for (k in seq_along(feature_extractors)) {
           result[1, k] <- doCall(feature_extractors[[k]], args = list(data_identifier = data_identifier, view = view, startdate = startdate, i = i, event_type = event_type[[k]], time_window = time_window), .ignoreUnusedArgs = T)
         }
         return(result)
@@ -884,7 +884,7 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
     i <- i + 1 + time_bin_size
   }
   # Stops cluster
-  stopCluster(cluster)
+  stopCluster(cluster_of_cores)
   close(progress_bar)
 
   # Add Featurenames
@@ -892,7 +892,7 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
 
   # If the data is not splited, group it
   if (split != T && parsed_arguments$group == T) {
-    features <- group_features(features, view, parsed_arguments$time_bin, cores, load_model = parsed_arguments$load_model, model_path = parsed_arguments$model_path, save_model = parsed_arguments$save_model, path = parsed_arguments$path)
+    features <- group_features(features, parsed_arguments$time_bin, cores, load_model = parsed_arguments$load_model, model_path = parsed_arguments$model_path, save_model = parsed_arguments$save_model, path = parsed_arguments$path)
   }
 
   return(features)
@@ -908,8 +908,8 @@ create_progress_bar <- function(data, startdate, enddate) {
 build_functionset_extraction <- function(parsed_arguments) {
 
   # Which Feature will be used, needed becuase of modularity
-  feature_extractors <- c()
-  feature_namens <- c()
+  feature_extractors <- NULL
+  feature_namens <- NULL
 
   # ID will always be used
   feature_extractors <- append(feature_extractors, Identifier_extractor)
@@ -927,7 +927,7 @@ build_functionset_extraction <- function(parsed_arguments) {
 
   types <- list(2, 3, 9, 10, c(11, 12))
   start_typ <- length(feature_extractors) + 1
-  for (z in 1:length(types)) {
+  for (z in seq_along(types)) {
     feature_extractors <- append(feature_extractors, proportion_event_extractor)
     feature_namens <- append(feature_namens, paste("proportion", paste(as.character(unlist(types[[z]])), collapse = "_"), sep = "_"))
   }
@@ -1068,9 +1068,9 @@ Users_per_X_extractor <- function(data_identifier, view, ...) {
 ##############
 
 # Function to group data into clusters by their means
-group_features <- function(features, view, time_bin, cores, label = F, load_model, model_path, save_model, path) {
+group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path) {
   # Calculate mean values
-  iter_means <- calculate_means(features, view, cores)
+  iter_means <- calculate_means(features, cores)
   # Calculate clusters
   number_clusters <- 13
   cluserted_features <- calculate_cluster(iter_means, features, number_clusters, label, load_model, model_path, save_model, path)
@@ -1105,7 +1105,7 @@ group_features <- function(features, view, time_bin, cores, label = F, load_mode
 }
 
 # Calculate means
-calculate_means <- function(features, view, cores) {
+calculate_means <- function(features, cores) {
 
   # ignore warnings
   options(warn = -1)
@@ -1118,8 +1118,8 @@ calculate_means <- function(features, view, cores) {
   iterator <- distinct(features, Identifier)
 
   # Cluster
-  cl <- makeCluster(cores)
-  registerDoParallel(cl)
+  cluster_of_cores <- makeCluster(cores)
+  registerDoParallel(cluster_of_cores)
 
   # Build means per User/Host/Source
   means <- foreach(j = seq_along(iterator[, 1]), .packages = c("lubridate", "dplyr"), .combine = rbind) %dopar% {
@@ -1130,7 +1130,7 @@ calculate_means <- function(features, view, cores) {
     }
     return(result)
   }
-  stopCluster(cl)
+  stopCluster(cluster_of_cores)
 
   # Name means
   colnames(means) <- colnames(features_without_factors)
@@ -1169,7 +1169,8 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
     uniq_rownames <- make.names(features[, 1], unique = T)
     rownames(features) <- uniq_rownames
     features <- features[, -which(names(features) %in% "Identifier")]
-    features <- features %>% rename(Identifier = Gruppe)
+    features <- features %>%
+      rename(Identifier = Gruppe)
     return(features)
   }else {
     # Use it as Label
@@ -1189,7 +1190,7 @@ calculate_min_max <- function(features, time_bin) {
   }
   min_max <- data.frame()
   j <- 1
-  for (i in 1:ncol(features[, start:(ncol(features) - 1)]) + start - 1) {
+  for (i in seq_len(ncol(features[, start:(ncol(features) - 1)])) + start - 1) {
     min_max[j, 1] <- min(features[, i])
     min_max[j, 2] <- max(features[, i])
     j <- j + 1
@@ -1257,9 +1258,12 @@ plot_partition_logontype <- function(data, path) {
 write_general_infos <- function(data, path) {
   infos <- NULL
   infos[1] <- paste("Existing Well known Source Ports:", paste(as.character(data[(data$Source_Port %in% 1:1023 & is.na(data$Source_Port) != T), "Source_Port"]), collapse = ", "))
-  infos[2] <- paste("Number of Hosts:", nrow(group_by(data, data$Host) %>% summarise(n())))
-  infos[3] <- paste("Number of Users:", nrow(group_by(data, data$User) %>% summarise(n())))
-  infos[4] <- paste("Number of Source-IPs:", nrow(group_by(data, data$Source) %>% summarise(n())))
+  infos[2] <- paste("Number of Hosts:", nrow(group_by(data, data$Host) %>%
+                                               summarise(n())))
+  infos[3] <- paste("Number of Users:", nrow(group_by(data, data$User) %>%
+                                               summarise(n())))
+  infos[4] <- paste("Number of Source-IPs:", nrow(group_by(data, data$Source) %>%
+                                                    summarise(n())))
   infos[5] <- paste("Smallest date of the data:", min(data$Time))
   infos[6] <- paste("Newest date:", max(data$Time))
   write.table(infos, file = paste0(path, "general_infos.txt"), row.names = F, col.names = F)
@@ -1323,7 +1327,7 @@ generate_and_plot_timeline_day <- function(data, path, startdate, enddate) {
 
 write_users_with_most_logon_proportion <- function(data, path) {
   logon_types <- distinct(data, data$Logon_Type)
-  logons <- c()
+  logons <- NULL
   for (i in logon_types[, 1]) {
     users_with_counts <- data[(data$Logon_Type == i),] %>%
       group_by(User) %>%
@@ -1333,7 +1337,7 @@ write_users_with_most_logon_proportion <- function(data, path) {
     users_with_counts[, 2] <- apply(users_with_counts[, 2], 2, function(x) { x / sum_logontype })
     users_with_counts <- slice(users_with_counts, 1:5)
     logons <- append(logons, paste0("Users with the most ", i, " Logon types:"))
-    for (k in 1:nrow(users_with_counts)) {
+    for (k in seq_len(nrow(users_with_counts))) {
       logons <- append(logons, paste("                                     ", users_with_counts[k, 1], users_with_counts[k, 2]))
     }
     logons <- append(logons, "")
@@ -1356,7 +1360,7 @@ detect_absolute_path_script <- function(file) {
   # Relative path from link file to dir
   relativ_path <- Sys.readlink(paste0("/", link_path, "FindMaliciousEvents"))
   # Calculate absolute path
-  absolute_path <- paste0(getAbsolutePath.default(sub("FindMaliciousEvents.R$", "", relativ_path), workDirectory = paste("/", link_path, sep = "")), "/")
+  absolute_path <- paste0(getAbsolutePath.default(sub("FindMaliciousEvents.R$", "", relativ_path), workDirectory = paste0("/", link_path)), "/")
   return(absolute_path)
 }
 
@@ -1374,7 +1378,7 @@ anomaly_detection <- function(features, parsed_arguments) {
 
   if (parsed_arguments$config) {
     config_data <- load_machine_learning_config(parsed_arguments)
-    validate_config(config_data, parsed_arguments)
+    validate_config(config_data, parsed_arguments, features)
   }else {
     config_data <- list()
   }
@@ -1399,14 +1403,7 @@ anomaly_detection <- function(features, parsed_arguments) {
 
 load_machine_learning_config <- function(parsed_arguments) {
   config_file <- paste0(parsed_arguments$absolute_path, "config.yaml")
-  read_permission <- 4
-  if (file.exists(config_file) == F) {
-    stop_and_help(paste0("The config file (", config_file, ") dont exists anymore."), call. = F)
-  }else if (file.access(config_file, read_permission) == -1) {
-    stop_and_help(paste0("The config file (", config_file, ") dont have read permissions."), call. = F)
-  }else if (file_ext(config_file) == "yaml") {
-    stop_and_help(paste0("The config file (", config_file, ") doesnt fit to .yaml file type."), call. = F)
-  }
+  validate_config_file(config_file)
   tryCatch(
     expr = {
       config_data <- read_yaml(config_file)
@@ -1417,12 +1414,23 @@ load_machine_learning_config <- function(parsed_arguments) {
   )
 }
 
-validate_config <- function(config_data, parsed_arguments) {
+validate_config_file <- function(config_file) {
+  read_permission <- 4
+  if (file.exists(config_file) == F) {
+    stop_and_help(paste0("The config file (", config_file, ") dont exists anymore."), call. = F)
+  }else if (file.access(config_file, read_permission) == -1) {
+    stop_and_help(paste0("The config file (", config_file, ") dont have read permissions."), call. = F)
+  }else if (file_ext(config_file) != "yaml") {
+    stop_and_help(paste0("The config file (", config_file, ") doesnt fit to .yaml file type."), call. = F)
+  }
+}
+
+validate_config <- function(config_data, parsed_arguments, features) {
   switch(parsed_arguments$machine_learning,
          "IF" = validate_isolationforest_arguments(config_data),
-         "kNN" = validate_knn_arguments(config_data),
-         "DAGMM" = validate_dagmm_arguments(config_data),
-         "RF" = validate_randomforest_arguments(config_data)
+         "kNN" = validate_knn_arguments(config_data, features),
+         "DAGMM" = validate_dagmm_arguments(config_data, features),
+         "RF" = validate_randomforest_arguments(config_data, features)
   )
 }
 
@@ -1433,22 +1441,25 @@ validate_isolationforest_arguments <- function(config_data) {
   validate_machine_learning_hyperparamters_isolationforest(config_data)
 }
 
-validate_knn_arguments <- function(config_data) {
+validate_knn_arguments <- function(config_data, features) {
   validate_machine_learning_method_exists(config_data, "k_nearest_neigbhour")
   hyperparameters <- c("contamination", "n_neighbors", "method", "algorithm", "metric")
   validate_machine_learning_hyperparamters_exist(config_data, "k_nearest_neigbhour", hyperparameters)
+  validate_machine_learning_hyperparamters_k_nearest_neigbhour(config_data, features)
 }
 
-validate_dagmm_arguments <- function(config_data) {
+validate_dagmm_arguments <- function(config_data, features) {
   validate_machine_learning_method_exists(config_data, "deep_autoencoding_gaussian_mixture_model")
   hyperparameters <- c("comp_hiddens", "comp_activation", "est_hiddens", "est_activation", "est_dropout_ratio", "epoch_size", "minibatch_size", "random_seed")
   validate_machine_learning_hyperparamters_exist(config_data, "deep_autoencoding_gaussian_mixture_model", hyperparameters)
+  validate_machine_learning_hyperparamters_deep_autoencoding_gaussian_mixture_model(config_data, features)
 }
 
-validate_randomforest_arguments <- function(config_data) {
+validate_randomforest_arguments <- function(config_data, features) {
   validate_machine_learning_method_exists(config_data, "randomforest")
   hyperparameters <- c("num.trees", "mtry", "min.node.size", "sample.fraction", "max.depth", "seed")
   validate_machine_learning_hyperparamters_exist(config_data, "randomforest", hyperparameters)
+  validate_machine_learning_hyperparamters_randomforest(config_data, features)
 }
 
 validate_machine_learning_method_exists <- function(config_data, method) {
@@ -1458,7 +1469,7 @@ validate_machine_learning_method_exists <- function(config_data, method) {
 }
 
 validate_machine_learning_hyperparamters_exist <- function(config_data, method, hyperparameters) {
-  for (i in 1:length(hyperparameters)) {
+  for (i in seq_along(hyperparameters)) {
     if (is.null(config_data[[method]][[hyperparameters[i] ]])) {
       stop_and_help(paste("The config for hyperparameter", hyperparameters[i], "does not exists."), call. = F)
     }
@@ -1467,9 +1478,71 @@ validate_machine_learning_hyperparamters_exist <- function(config_data, method, 
 
 validate_machine_learning_hyperparamters_isolationforest <- function(config_data) {
   isolationforest_config_data <- config_data[['isolationforest']]
-  validate_hyperparamter_is_integer(isolationforest_config_data, "n_estimators")
-  validate_hyperprameter_interval(isolationforest_config_data, "n_estimators", 0, 1000000)
+  validate_hyperparameter(isolationforest_config_data, "n_estimators", NULL, F, T, T, 0, 100000, F)
+  validate_hyperparameter(isolationforest_config_data, "max_samples", "auto", F, T, F, 0, 1.0, F)
+  validate_hyperparameter(isolationforest_config_data, "contamination", NULL, F, T, F, 0, 0.99999999, F)
+  validate_hyperparameter(isolationforest_config_data, "max_features", NULL, F, T, F, 0, 1.0, F)
+  validate_hyperparameter(isolationforest_config_data, "random_state", NULL, T, T, T, -Inf, Inf, F)
+}
 
+validate_machine_learning_hyperparamters_k_nearest_neigbhour <- function(config_data, features) {
+  isolationforest_config_data <- config_data[['k_nearest_neigbhour']]
+  validate_hyperparameter(isolationforest_config_data, "contamination", NULL, F, T, F, 0, .99999999, F)
+  validate_hyperparameter(isolationforest_config_data, "n_neighbors", NULL, F, T, T, 0, nrow(features), F)
+  validate_hyperparameter(isolationforest_config_data, "method", c("largest", "mean", "median"), F, F, F, NULL, NULL, F)
+  validate_hyperparameter(isolationforest_config_data, "algorithm", c("ball_tree", "kd_tree", "brute", "auto"), F, F, F, NULL, NULL, F)
+  possible_metrics <- c('cityblock', 'cosine', 'euclidean', 'l1', 'l2', 'manhattan', 'braycurtis', 'canberra', 'chebyshev', 'correlation', 'dice', 'hamming', 'jaccard', 'kulsinski', 'mahalanobis', 'matching', 'minkowski', 'rogerstanimoto', 'russellrao', 'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean', 'yule')
+  validate_hyperparameter(isolationforest_config_data, "metric", possible_metrics, F, F, F, NULL, NULL, F)
+}
+
+validate_machine_learning_hyperparamters_deep_autoencoding_gaussian_mixture_model <- function(config_data, features) {
+  isolationforest_config_data <- config_data[['deep_autoencoding_gaussian_mixture_model']]
+  validate_hyperparameter(isolationforest_config_data, "comp_hiddens", NULL, F, T, T, 0, Inf, T)
+  activation_functions <- c("deserialize", "elu", "exponential", "gelu", "get", "hard_sigmoid", "linear", "relu", "selu", "serialize", "sigmoid", "softmax", "softplus", "softsign", "swish", "tanh")
+  validate_hyperparameter(isolationforest_config_data, "comp_activation", activation_functions, F, F, F, NULL, NULL, F)
+  validate_hyperparameter(isolationforest_config_data, "est_hiddens", NULL, F, T, T, 0, Inf, T)
+  validate_hyperparameter(isolationforest_config_data, "est_activation", activation_functions, F, F, F, NULL, NULL, F)
+  validate_hyperparameter(isolationforest_config_data, "est_dropout_ratio", NULL, T, T, F, 0, 0.99999999, F)
+  validate_hyperparameter(isolationforest_config_data, "epoch_size", NULL, F, T, T, 99, Inf, F)
+  validate_hyperparameter(isolationforest_config_data, "minibatch_size", NULL, F, T, T, 0, nrow(features), F)
+  validate_hyperparameter(isolationforest_config_data, "random_seed", NULL, F, T, T, -Inf, Inf, F)
+}
+
+validate_machine_learning_hyperparamters_randomforest <- function(config_data, features) {
+  isolationforest_config_data <- config_data[['randomforest']]
+  validate_hyperparameter(isolationforest_config_data, "num.trees", NULL, F, T, T, 0, 100000, F)
+  validate_hyperparameter(isolationforest_config_data, "mtry", NULL, F, T, T, 0, ncol(features), F)
+  validate_hyperparameter(isolationforest_config_data, "min.node.size", NULL, F, T, T, 0, Inf, F)
+  validate_hyperparameter(isolationforest_config_data, "sample.fraction", NULL, F, T, F, 0, 1.0, F)
+  validate_hyperparameter(isolationforest_config_data, "max.depth", NULL, T, T, T, 0, Inf, F)
+  validate_hyperparameter(isolationforest_config_data, "seed", NULL, T, T, T, -Inf, Inf, F)
+}
+
+validate_hyperparameter <- function(method_config_data, hyperparameter, possible_strings, possible_null, possible_number, integer, left_interval, right_interval, possible_vector) {
+  if (is.character(method_config_data[[hyperparameter]])) {
+    if ((method_config_data[[hyperparameter]] %in% possible_strings) == F) {
+      stop_and_help(paste0("The Hyperparamter ", hyperparameter, " doesnt fit to the character option."))
+    }
+  }else if (possible_null == F && is.character(method_config_data[[hyperparameter]]) == F) {
+    if (is.null(method_config_data[[hyperparameter]]) || (method_config_data[[hyperparameter]] == 0 && (left_interval >= 0 || right_interval < 0))) {
+      stop_and_help(paste0("The Hyperparamter ", hyperparameter, " cant use 0 and null."))
+    }
+  }else if (possible_number) {
+    if (integer) {
+      validate_hyperparamter_is_integer(method_config_data, hyperparameter)
+    }else {
+      validate_hyperparamter_is_double(method_config_data, hyperparameter)
+    }
+    validate_hyperprameter_interval(method_config_data, hyperparameter, left_interval, right_interval)
+  }else if (possible_vector) {
+    if (is.numeric(method_config_data[[hyperparameter]]) == F || is.vector(method_config_data[[hyperparameter]]) == F) {
+      stop_and_help(paste0("The Hyperparamter ", hyperparameter, " needs to be a numeric vector."))
+    }else if (is.unsorted(rev(method_config_data[[hyperparameter]]))) {
+      stop_and_help(paste0("The Hyperparamter ", hyperparameter, " needs to be inverted sorted."))
+    }else if (method_config_data[[hyperparameter]][[length(method_config_data[[hyperparameter]])]] <= 0) {
+      stop_and_help(paste0("The last Array Hyperparamter ", hyperparameter, " needs to be bigger than zero."))
+    }
+  }
 }
 
 validate_hyperparamter_is_integer <- function(method_config_data, hyperparameter) {
@@ -1493,6 +1566,7 @@ validate_hyperprameter_interval <- function(method_config_data, hyperparameter, 
     stop_and_help(paste0("The Hyperparamter ", hyperparameter, " is too big."), call. = F)
   }
 }
+
 
 # Check if Python 3 is installed, if its installed activate a virtual envirmonent
 setup_python <- function(path) {
@@ -1525,7 +1599,7 @@ python_machine_learning_dagmm <- function(Input_path, Output_path, rank, mean_ra
 # Use function with the randomforest, to predict the number of clusters the view is visting
 machine_learning_randomforest <- function(features, view, time_bin, cores, path, load_model, model_path, save_model, config_data) {
   #Clustert die Daten und gibt die Mittelwertdaten+ die Clusternummer als Label zurück
-  means_label <- group_features(features, view, time_bin, cores, label = T, load_model, model_path, save_model, path)
+  means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path, save_model, path)
 
   if (load_model) {
     model <- load_randomforest_model(model_path)
@@ -1569,10 +1643,10 @@ machine_learning_randomforest <- function(features, view, time_bin, cores, path,
     }
   )
   # ID+Group
-  Identifier_Gruppe <- data.frame(Identifier = features[, 1], Gruppe = as.factor(preds$predictions))
+  id_with_associated_group <- data.frame(Identifier = features[, 1], Gruppe = as.factor(preds$predictions))
 
   # Counts how many groups are visted by the person and sorts it
-  result <- Identifier_Gruppe %>%
+  result <- id_with_associated_group %>%
     distinct(Identifier, Gruppe) %>%
     group_by(Identifier) %>%
     summarise(n())
@@ -1603,7 +1677,7 @@ load_randomforest_model <- function(model_path) {
 # Grid search randomforest
 grid_search_randomforest <- function(means_label) {
   # Split the means values in train and test data
-  train <- means_label[sample(1:nrow(means_label), nrow(means_label) * 0.7),]
+  train <- means_label[sample(seq_len(nrow(means_label)), nrow(means_label) * 0.7),]
   test <- means_label[!(rownames(means_label) %in% rownames(train)),]
 
   # Create hyperparameter grid
@@ -1702,14 +1776,14 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
         insider <- subset(insider, !(insider %in% outsider))
       }
 
-      if (not_randomforest == T) {
+      if (not_randomforest) {
         not_included <- c("Identifier", "day")
         if (mean_rank) {
           colors <- palette(length(colors))
           plot_data <- select(features[insider,], !one_of(not_included))
         }else {
-          colors[1:(length(cols) - length(outsider))] <- palette((length(colors) - length(outsider)))
-          colors[(length(cols) - length(outsider) + 1):length(cols)] <- palette_outsider(length(outsider))
+          colors[1:(length(colors) - length(outsider))] <- palette((length(colors) - length(outsider)))
+          colors[(length(colors) - length(outsider) + 1):length(colors)] <- palette_outsider(length(outsider))
           plot_data <- rbind(select(features[insider,], !one_of(not_included)), select(features[outsider,], !one_of(not_included)))
         }
       }else {
@@ -1730,7 +1804,7 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
 }
 
 extract_insider_and_outsider <- function(not_randomforest, mean_rank, iterator, results, features) {
-  if (not_randomforest == T) {
+  if (not_randomforest) {
     if (mean_rank) {
       outsider <- ""
     }else {
@@ -1745,7 +1819,7 @@ extract_insider_and_outsider <- function(not_randomforest, mean_rank, iterator, 
     insider <- features[(features$Identifier == iterator),]
     outsider <- ""
     if (nrow(insider) > 50) {
-      insider <- insider[sample(1:nrow(insider), 50),]
+      insider <- insider[sample(seq_len(nrow(insider)), 50),]
     }
     colors <- character(nrow(insider))
   }

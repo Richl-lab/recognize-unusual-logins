@@ -1,6 +1,9 @@
 # Randomforest Hyperparameter
 # https://cran.r-project.org/web/packages/ranger/ranger.pdf
 randomforest:
+  # Dynamic uses a grid search for best hyperparameter
+  # TRUE or FALSE
+  dynamic: TRUE
   # Number of trees >0
   num.trees: 500
   # Features >0 & <=max(features)
@@ -46,10 +49,15 @@ k_nearest_neigbhour:
 # DAGMM Hyperparameter
 # https://github.com/tnakae/DAGMM/blob/master/dagmm/dagmm.py
 deep_autoencoding_gaussian_mixture_model:
+  # Dynamic will uses a dynamic neuron count per layer
+  # TRUE or False
+  dynamic: TRUE
+  # Neurons per Compression layer
   # Array of ints, min = 1, last number is not mirrored
   comp_hiddens: [ 24, 16, 8, 4, 2 ]
   # Activation function fitted to tensorflow
   comp_activation: tanh
+  # Neurons per Estimation layer
   # Array of ints, min = 1, last number = number of mixture model components
   est_hiddens: [ 16, 8, 4 ]
   # https://www.tensorflow.org/api_docs/python/tf/keras/activations

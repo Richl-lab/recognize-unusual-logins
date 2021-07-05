@@ -57,8 +57,15 @@ Installs:
 
 Configuration:
 * virtual environment named maliciousevents
-* link to the FindMaliciousEvents program
 * create ~/.R directory for r site-packages
+
+Optional Configuration:
+
+Add a link to one of your $PATH locations. As example, it can look like:
+   ```sh
+ln -s -r FindMaliciousEvents.R ~/.local/bin/FindMaliciousEvents   
+  ```
+
 
 ## Logon Data
 The data needs the following structure:
@@ -70,7 +77,20 @@ The data needs the following structure:
 Users with smaller numbers then 10000 will be removed, because they are interpreted as Well-Known-SIDs. The Software was tested with anonymized Users, Hosts and Sources so there is no guarantee that it works without that.
 
 ## Usage
-After usage the r script should be executable:
+After usage the r script should be executable.
+
+With seted link:
+   ```sh
+   FindMaliciousEvents args
+   ```
+Without:
+   ```sh
+   FindMaliciousEvents.R args
+   or
+   Rscript FindMaliciousEvents.R args
+   ```
+
+Arguments:
    ```sh
    FindMaliciousEvents [File location] [Directory to save] [Options]
    ```

@@ -3,43 +3,31 @@
 # Autorenschaft:    Richard Mey <richard.mey@syss.de>
 # Stand:            16.06.2021
 
+import sys
+import re
+import pandas as pd
+from sklearn.ensemble import IsolationForest
+from joblib import dump, load
+
+python_script_directory = re.sub("maliciousevents/bin/python", "", sys.argv[0]) + "ml/"
+sys.path.insert(1, python_script_directory)
+import Pre_and_post_processing as pp
+
+
 # https://blog.paperspace.com/anomaly-detection-isolation-forest/
-# Funktionsdefinition für den Isolationforest mit Ausgabepfad+Anzahl an Kernen
 def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path,
                          config_data):
-    # Laden der nötigen Bibliotheken
-    import sys
-    sys.path.insert(1, source_path + "maliciousevents/lib/python3.8/site-packages/")
-    sys.path.insert(1, source_path + "ml/")
+    features = pp.read_features(path)
 
-    import pandas as pd
-    from sklearn.ensemble import IsolationForest
-    from joblib import dump, load
-    # https://stackoverflow.com/questions/4383571/importing-files-from-different-folder
-    import Pre_and_post_processing as pp
+    columns = pp.get_column_names(features)
 
-    # Einlesen der Features
-    features = pd.read_csv((path + "Features.csv"), index_col=0)
-
-    columns = features.columns.values.tolist()
-
-    if "hour" in columns:
-        hours, features = pp.convert_hours(features)
-
-    if "day" in columns:
-        days, features = pp.convert_days(features)
+    hours, days, features = pp.convert_time_features(features, columns)
 
     if not load_model:
-        if config_data is not None:
-            model = IsolationForest(n_estimators=config_data['n_estimators'], max_samples=config_data['max_samples'],
-                                    contamination=float(config_data['contamination']),
-                                    max_features=config_data['max_features'],
-                                    n_jobs=cores, random_state=config_data['random_state'])
-        else:
-            # Erstellen des Models IF mit den Hyperparametern
-            model = IsolationForest(n_estimators=50, max_samples='auto', contamination=float(0.0001), max_features=1.0,
-                                    n_jobs=cores, random_state=123)
-
+        model = IsolationForest(n_estimators=config_data['n_estimators'], max_samples=config_data['max_samples'],
+                                contamination=float(config_data['contamination']),
+                                max_features=config_data['max_features'],
+                                n_jobs=cores, random_state=config_data['random_state'])
         # Trainieren der Bäume
         model.fit(features)
     else:
@@ -49,31 +37,26 @@ def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, 
             print("Use the correct model on load with the correct machine learning option.")
             sys.exit(1)
 
-    if save_model:
-        dump(model, path + 'model/' + 'model.joblib')
+    pp.save_model_to_path(model, path, save_model)
 
-    # Vorhersage/Auslesen des Scores und ob es dadurch einer Anomaly entspricht
+    features = predict(features, model, columns)
+
+    features = pp.sort_features(features, ascending=True)
+
+    features = pp.convert_time_features_back(features, columns, hours, days)
+
+    if not rank:
+        pp.persist_result(features, path, anomaly_id=-1)
+    else:
+        pp.persist_rank_result(mean_rank, path, features)
+
+
+def predict(features, model, columns):
     try:
         features['scores'] = model.decision_function(features[columns])
         features['anomaly'] = model.predict(features[columns])
     except:
         print("The features of the data should be the same like the model features.")
         sys.exit(1)
-    # Sortieren nach Score
-    features = features.sort_values(by=['scores'], ascending=True)
 
-    if "hour" in columns:
-        features['hour'] = hours
-
-    if "day" in columns:
-        features['day'] = days
-
-    # Anomalien in die Ausgabe schreiben
-    if not rank:
-        features.loc[features['anomaly'] == -1].to_csv(path + 'results.csv')
-    else:
-        if mean_rank:
-            res = pp.rank_mean(features)
-        else:
-            res = pp.rank_first(features)
-        res.to_csv(path + 'results.csv')
+    return features

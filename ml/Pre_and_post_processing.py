@@ -7,6 +7,30 @@ import datetime
 import pandas as pd
 import re
 import numpy as np
+from joblib import dump
+
+
+def read_features(path):
+    features = pd.read_csv((path + "Features.csv"), index_col=0)
+    return features
+
+
+def get_column_names(features):
+    columns = features.columns.values.tolist()
+    return columns
+
+
+def convert_time_features(features, columns):
+    if "hour" in columns:
+        hours, features = convert_hours(features)
+    else:
+        hours = None
+    if "day" in columns:
+        days, features = convert_days(features)
+    else:
+        days = None
+
+    return hours, days, features
 
 
 def convert_hours(features: pd.DataFrame):
@@ -40,12 +64,36 @@ def convert_days(features: pd.DataFrame):
     return days, features
 
 
-def extract_index(features: pd.DataFrame):
-    rownames = features.index.values.tolist()
-    new_names = []
-    for names in rownames:
-        new_names.append(re.sub('^X', "", re.sub('\\..*$', "", names)))
-    return new_names
+def save_model_to_path(model, path, save_model):
+    if save_model:
+        dump(model, path + 'model/' + 'model.joblib')
+
+
+def sort_features(features, ascending):
+    sorted_features = features.sort_values(by=['scores'], ascending=ascending)
+    return sorted_features
+
+
+def convert_time_features_back(features, columns, hours, days):
+    if "hour" in columns:
+        features['hour'] = hours
+
+    if "day" in columns:
+        features['day'] = days
+
+    return features
+
+
+def persist_result(features, path, anomaly_id):
+    features.loc[features['anomaly'] == anomaly_id].to_csv(path + 'results.csv')
+
+
+def persist_rank_result(mean_rank, path, features):
+    if mean_rank:
+        res = rank_mean(features)
+    else:
+        res = rank_first(features)
+    res.to_csv(path + 'results.csv')
 
 
 def rank_first(features: pd.DataFrame):
@@ -58,6 +106,14 @@ def rank_first(features: pd.DataFrame):
             in_res.append(new_names[i])
 
     return res
+
+
+def extract_index(features: pd.DataFrame):
+    rownames = features.index.values.tolist()
+    new_names = []
+    for names in rownames:
+        new_names.append(re.sub('^X', "", re.sub('\\..*$', "", names)))
+    return new_names
 
 
 def rank_mean(features: pd.DataFrame):

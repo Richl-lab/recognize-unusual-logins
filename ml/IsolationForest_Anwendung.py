@@ -5,9 +5,8 @@
 
 import sys
 import re
-import pandas as pd
 from sklearn.ensemble import IsolationForest
-from joblib import dump, load
+from joblib import load
 
 python_script_directory = re.sub("maliciousevents/bin/python", "", sys.argv[0]) + "ml/"
 sys.path.insert(1, python_script_directory)
@@ -15,7 +14,7 @@ import Pre_and_post_processing as pp
 
 
 # https://blog.paperspace.com/anomaly-detection-isolation-forest/
-def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path,
+def isolationforest_exec(path, cores, rank, mean_rank, load_model, save_model, model_path,
                          config_data):
     features = pp.read_features(path)
 
@@ -24,18 +23,11 @@ def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, 
     hours, days, features = pp.convert_time_features(features, columns)
 
     if not load_model:
-        model = IsolationForest(n_estimators=config_data['n_estimators'], max_samples=config_data['max_samples'],
-                                contamination=float(config_data['contamination']),
-                                max_features=config_data['max_features'],
-                                n_jobs=cores, random_state=config_data['random_state'])
-        # Trainieren der Bäume
+        model = create_model(config_data, cores)
         model.fit(features)
     else:
         model = load(model_path + 'model.joblib')
-
-        if str(type(model)) != "<class 'sklearn.ensemble._iforest.IsolationForest'>":
-            print("Use the correct model on load with the correct machine learning option.")
-            sys.exit(1)
+        validate_loaded_model(model)
 
     pp.save_model_to_path(model, path, save_model)
 
@@ -49,6 +41,20 @@ def isolationforest_exec(source_path, path, cores, rank, mean_rank, load_model, 
         pp.persist_result(features, path, anomaly_id=-1)
     else:
         pp.persist_rank_result(mean_rank, path, features)
+
+
+def create_model(config_data, cores):
+    model = IsolationForest(n_estimators=config_data['n_estimators'], max_samples=config_data['max_samples'],
+                            contamination=float(config_data['contamination']),
+                            max_features=config_data['max_features'],
+                            n_jobs=cores, random_state=config_data['random_state'])
+    return model
+
+
+def validate_loaded_model(model):
+    if str(type(model)) != "<class 'sklearn.ensemble._iforest.IsolationForest'>":
+        print("Use the correct model on load with the correct machine learning option.")
+        sys.exit(1)
 
 
 def predict(features, model, columns):

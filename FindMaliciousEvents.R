@@ -36,10 +36,11 @@ main <- function(args) {
   validate_not_empty_arguments(args)
   splitted_args <- split_arguments(args)
   args <- splitted_args$args
-  envr_args <- splitted_args$envr_args # TODO=validate
+  envr_args <- splitted_args$envr_args
 
-  validate_arguments(args)
   initalize_global_variables()
+  validate_arguments(args)
+  validate_envr_arguments(envr_args)
   load_libraries()
   parsed_arguments <- parse_arguments(args, envr_args)
   config_data <- load_machine_learning_config(parsed_arguments)
@@ -67,7 +68,7 @@ split_arguments <- function(args) {
 }
 
 validate_arguments <- function(args) {
-  read_and_write <- c(4, 2)
+  read_and_write_permission <- c(4, 2)
   if (args[1] == "--help") {
     help_output()
     quit()
@@ -75,20 +76,33 @@ validate_arguments <- function(args) {
     stop_and_help(paste0("The file ", args[1], " needs to exist."), call. = F)
   }else if (dir.exists(args[2]) == F) {
     stop_and_help(paste0("The directory ", args[2], " needs to exists."), call. = F)
-  }else if (file.access(as.character(args[2]), read_and_write) == -1) {
+  }else if (file.access(as.character(args[2]), read_and_write_permission) == -1) {
     stop_and_help(paste0("The directory (", args[2], ") sufficient rights (w,r) are not given.."), call. = F)
   }
 }
 
+validate_envr_arguments<-function (envr_args){
+  if("--restore" %in% envr_args){
+    stop_and_help("The option --restore should not be used, it will slow down the process.")
+  }
+}
+
 initalize_global_variables <- function() {
-  time_bin_hour <- "h"
-  time_bin_day <- "d"
-  time_bin_day_and_hour <- "dh"
-  time_sorted_filename <- "time_sort.csv"
-  view_user <- 4
-  view_host <- 2
-  view_source_ip <- 5
-  assign(as.character(time_bin_day), time_bin_day, envir = .GlobalEnv)
+
+  assign("time_bin_hour", "h", envir = .GlobalEnv)
+  assign("time_bin_day", "d", envir = .GlobalEnv)
+  assign("time_bin_day_and_hour", "dh", envir = .GlobalEnv)
+
+  assign("time_sorted_filename", "time_sort.csv", envir = .GlobalEnv)
+
+  assign("view_user", 4, envir = .GlobalEnv)
+  assign("view_host", 2, envir = .GlobalEnv)
+  assign("view_source_ip", 5, envir = .GlobalEnv)
+
+    assign("read_permission", 4, envir = .GlobalEnv)
+
+
+
 }
 
 #################
@@ -152,27 +166,15 @@ stop_and_help <- function(message, call. = F, domain = NULL) {
 
 # function to load and activate all needed libraries
 load_libraries <- function() {
-  # Download path to libraries
-  repository <- "https://cran.r-project.org/"
 
-  ## Install all needed libraries
-  # https://stackoverflow.com/questions/9341635/check-for-installed-packages-before-running-install-packages
-  packages <- c("dplyr", "ggplot2", "tools", "lubridate", "doParallel", "reshape2", "scales", "FactoMineR", "factoextra", "R.utils", "reticulate", "RColorBrewer", "fmsb", "BBmisc", "ranger", "caret", "e1071", "clue", "yaml")
-  suppressMessages(install.packages(setdiff(packages, rownames(installed.packages())), repos = repository, quiet = T))
-
-
-  # Load all libraries
   suppressMessages(library(tools))
   suppressMessages(library(dplyr))
   suppressMessages(library(ggplot2))
   suppressMessages(library(lubridate, quietly = T, mask.ok = F))
   suppressMessages(library(hms))
   suppressMessages(library(doParallel))
-  #suppressMessages(library(reshape2))
-  #suppressMessages(library(scales))
   suppressMessages(library(R.utils))
   suppressMessages(library(reticulate))
-  # suppressMessages(library(RColorBrewer))
   suppressMessages(library(fmsb))
   suppressMessages(library(BBmisc))
   suppressMessages(library(ranger))
@@ -195,8 +197,8 @@ parse_arguments <- function(args, envr_args) {
   parsed_arguments$path <- create_output_folder(args)
   parsed_arguments$data_path <- data_path_argument(args)
   parsed_arguments$statistics <- statistics_argument(args)
-  parsed_arguments$view <- view_argument(args)
-  machine_learning_and_group <- machine_learning_argument(args)
+  parsed_arguments$view <- view_argument(args,view=view_user)
+  machine_learning_and_group <- machine_learning_argument(args, machine_learning = "kNN",  group = T)
   parsed_arguments$machine_learning <- machine_learning_and_group$machine_learning
   parsed_arguments$group <- machine_learning_and_group$group
   time_arguments <- time_bin_argument(args)
@@ -255,9 +257,7 @@ statistics_argument <- function(args) {
 }
 
 # Return vview argument
-view_argument <- function(args) {
-
-  view <- view_user
+view_argument <- function(args,view) {
 
   if (length(grep("^-v$", as.character(args))) != 0) {
     if (is.na(args[grep("^-v$", as.character(args)) + 1])) {
@@ -269,9 +269,9 @@ view_argument <- function(args) {
         if (as.character(args[grep("^-v$", as.character(args)) + 1]) == "u") {
           view <- view_user
         }else if (as.character(args[grep("^-v$", as.character(args)) + 1]) == time_bin_hour) {
-          view <- 2
+          view <- view_host
         }else {
-          view <- 5
+          view <- view_source_ip
         }
       }else {
         stop_and_help("You did not specify any of the validate views (u,h,s).", call. = F)
@@ -282,10 +282,7 @@ view_argument <- function(args) {
 }
 
 # Return machine_learning arguments
-machine_learning_argument <- function(args) {
-
-  machine_learning <- "kNN"
-  group <- T
+machine_learning_argument <- function(args,machine_learning,group) {
 
   if (length(grep("^-m$", as.character(args))) != 0) {
     if (is.na(args[grep("^-m$", as.character(args)) + 1])) {
@@ -551,7 +548,6 @@ extract_features_from_file <- function(parsed_arguments) {
 # If the option -e has been choosen, Features which has been created with this program can be loaded
 read_in_features_from_file <- function(path) {
   if (file_ext(path) == "csv") {
-    read_permission <- 4
     if (file.access(path, read_permission) == -1) {
       stop_and_help("Missing a file for which you got the rights to read.", call. = F)
     }
@@ -584,7 +580,6 @@ read_in_data <- function(data_path, path) {
   # End program if its not csv
   if (file_ext(data_path) == "csv") {
     # If the user dont got enough rights, end
-    read_permission <- 4
     if (file.access(data_path, read_permission) == -1) {
       stop_and_help("Missing a file for which you got the rights to read.", call. = F)
     }
@@ -951,7 +946,7 @@ build_functionset_extraction <- function(parsed_arguments) {
 time_bin_functionset_build <- function(time_bin, days_instead, feature_extractors, feature_namens) {
 
   switch(time_bin,
-         time_bin_day = {
+         "d" = {
            if (days_instead) {
              feature_extractors <- append(feature_extractors, day_feature_2)
              feature_namens <- append(feature_namens, "day")
@@ -961,12 +956,12 @@ time_bin_functionset_build <- function(time_bin, days_instead, feature_extractor
            }
            time_window <- days
          },
-         time_bin_hour = {
+         "h" = {
            feature_extractors <- append(feature_extractors, hour_extractor)
            feature_namens <- append(feature_namens, "hour")
            time_window <- hours
          },
-         time_bin_day_and_hour = {
+         "dh" = {
            feature_extractors <- append(feature_extractors, day_extractor)
            feature_extractors <- append(feature_extractors, hour_extractor)
            feature_namens <- append(feature_namens, c("day", "hour"))
@@ -984,7 +979,7 @@ view_functionset_build <- function(view, feature_extractors, feature_namens) {
            feature_extractors <- append(feature_extractors, Sources_per_X_extractor)
            feature_namens <- append(feature_namens, c("Users_per_Host", "Sources_per_Host"))
          },
-         as.character(view_user) <- {
+         "4" = {
            feature_extractors <- append(feature_extractors, Hosts_per_X_extractor)
            feature_extractors <- append(feature_extractors, Sources_per_X_extractor)
            feature_namens <- append(feature_namens, c("Hosts_per_User", "Sources_per_User"))
@@ -1085,7 +1080,7 @@ group_features <- function(features, time_bin, cores, label = F, load_model, mod
       min_max <- readRDS(paste0(model_path, "min_max.rds"))
       min_max_new <- calculate_min_max(cluserted_features, time_bin)
       min_max <- as.numeric(unlist(calculate_from_two_min_max(min_max, min_max_new)))
-      if (time_bin == time_bin_day_and_hour) { # TODO= STRings + >3 globale var
+      if (time_bin == time_bin_day_and_hour) {
         cluserted_features[, 3:(ncol(features) - 1)] <- complet_normalize_features(cluserted_features[, 3:(ncol(features) - 1)], min_max)
       }else {
         cluserted_features[, 2:(ncol(features) - 1)] <- complet_normalize_features(cluserted_features[, 2:(ncol(features) - 1)], min_max)
@@ -1411,7 +1406,6 @@ load_machine_learning_config <- function(parsed_arguments) {
 }
 
 validate_config_file <- function(config_file) {
-  read_permission <- 4
   if (file.exists(config_file) == F) {
     stop_and_help(paste0("The config file (", config_file, ") dont exists anymore."), call. = F)
   }else if (file.access(config_file, read_permission) == -1) {
@@ -1587,19 +1581,19 @@ setup_python <- function(path) {
 # Use python function with the isolationforest
 python_machine_learning_isolationforest <- function(Input_path, Output_path, cores, rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/IsolationForest_Anwendung.py"))
-  isolationforest_exec(Input_path, Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
+  isolationforest_exec(Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the kNN
 python_machine_learning_kNN <- function(Input_path, Output_path, cores, rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/kNN_Anwendung.py"))
-  knn_exec(Input_path, Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
+  knn_exec(Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the dagmm
 python_machine_learning_dagmm <- function(Input_path, Output_path, rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/DAGMM_Anwendung.py"))
-  dagmm_exec(Input_path, Output_path, rank, mean_rank, load_model, save_model, model_path, config_data)
+  dagmm_exec(Output_path, rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use function with the randomforest, to predict the number of clusters the view is visting

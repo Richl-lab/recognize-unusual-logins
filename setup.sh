@@ -46,6 +46,7 @@ then
 	
 	# Create a folder to save all R Packages later
 	mkdir ~/.R
+	Rscript setup_requirements.R
 
 else
 	echo "Not able to install, without apt."

@@ -5,16 +5,15 @@
 
 import sys
 import re
-import pandas as pd
 from pyod.models.knn import KNN
-from joblib import dump, load
+from joblib import load
 
 python_script_directory = re.sub("maliciousevents/bin/python", "", sys.argv[0]) + "ml/"
 sys.path.insert(1, python_script_directory)
 import Pre_and_post_processing as pp
 
 
-def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, model_path, config_data):
+def knn_exec(path, cores, rank, mean_rank, load_model, save_model, model_path, config_data):
     features = pp.read_features(path)
 
     columns = pp.get_column_names(features)
@@ -22,17 +21,11 @@ def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, 
     hours, days, features = pp.convert_time_features(features, columns)
 
     if not load_model:
-        model = KNN(contamination=config_data['contamination'], n_neighbors=config_data['n_neighbors'],
-                    method=config_data['method'], algorithm=config_data['algorithm'], n_jobs=cores,
-                    metric=config_data['metric'])
-        # Trainieren des kNNs
+        model = create_model(config_data, cores)
         model.fit(features)
     else:
         model = load(model_path + 'model.joblib')
-
-        if str(type(model)) != "<class 'pyod.models.knn.KNN'>":
-            print("Use the correct model on load with the correct machine learning option.")
-            sys.exit(1)
+        validate_loaded_model(model)
 
     pp.save_model_to_path(model, path, save_model)
 
@@ -48,6 +41,19 @@ def knn_exec(source_path, path, cores, rank, mean_rank, load_model, save_model, 
         pp.persist_result(features, path, anomaly_id=1)
     else:
         pp.persist_rank_result(mean_rank, path, features)
+
+
+def create_model(config_data, cores):
+    model = KNN(contamination=config_data['contamination'], n_neighbors=config_data['n_neighbors'],
+                method=config_data['method'], algorithm=config_data['algorithm'], n_jobs=cores,
+                metric=config_data['metric'])
+    return model
+
+
+def validate_loaded_model(model):
+    if str(type(model)) != "<class 'pyod.models.knn.KNN'>":
+        print("Use the correct model on load with the correct machine learning option.")
+        sys.exit(1)
 
 
 def predict(model):

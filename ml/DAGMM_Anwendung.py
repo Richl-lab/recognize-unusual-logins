@@ -17,8 +17,8 @@ import Pre_and_post_processing as pp
 
 
 # https://github.com/tnakae/DAGMM/blob/master/Example_DAGMM.ipynb
-def dagmm_exec(path, rank, mean_rank, load_model, save_model, model_path, config_data):
-    features = pp.read_features(path)
+def dagmm_exec(path,data_path, rank, mean_rank, load_model, save_model, model_path, config_data):
+    features = pp.read_features(data_path)
 
     rownames = get_rownames(features)
     columns = pp.get_column_names(features)

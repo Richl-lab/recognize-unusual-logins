@@ -20,7 +20,7 @@ then
 	# Checks if the maliciousevents folder is not existing, if yes create a virtual environment
 	if [ $(ls -d */ | grep -c "maliciousevents") -eq 0 ];
 	then
-		python3 -m venv maliciousevents
+		python3.8 -m venv maliciousevents
 	fi
 	
 	# Activate the virtual environment

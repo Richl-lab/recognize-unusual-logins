@@ -243,7 +243,7 @@ create_output_folder <- function(args) {
 
 # Return Data path
 data_path_argument <- function(args) {
-  return(as.character(args[1]))
+  return(getAbsolutePath.default(as.character(args[1])))
 }
 
 # Return statistics argument
@@ -536,7 +536,7 @@ ignore_interval_users_argument <- function(args) {
 # Main Function to generate or read Features
 extract_features_from_file <- function(parsed_arguments) {
   if (parsed_arguments$extracted_features) {
-    features <- read_in_features_from_file(parsed_arguments$path)
+    features <- read_in_features_from_file(parsed_arguments$data_path)
   }else {
     data <- read_in_data(parsed_arguments$data_path, parsed_arguments$path)
     if (is.null(nrow(data)) == F) {
@@ -553,13 +553,13 @@ extract_features_from_file <- function(parsed_arguments) {
 }
 
 # If the option -e has been choosen, Features which has been created with this program can be loaded
-read_in_features_from_file <- function(path) {
-  if (file_ext(path) == "csv") {
-    if (file.access(path, read_permission) == -1) {
+read_in_features_from_file <- function(data_path) {
+  if (file_ext(data_path) == "csv") {
+    if (file.access(data_path, read_permission) == -1) {
       stop_and_help("Missing a file for which you got the rights to read.", call. = F)
     }
     tryCatch(expr = {
-      features <- read.csv(path, row.names = 1)
+      features <- read.csv(data_path, row.names = 1)
       possible_features <- "weekday|number_events|proportion_[0-9_]+|hour|day|events_per_second|Identifier|Users_per_Host|Users_per_Source|Hosts_per_User|Hosts_per_Source|Sources_per_User|Sources_per_Host"
       if (length(grep(possible_features, colnames(features), invert = T)) != 0) {
         stop_and_help("The inserted Feature set, does not match the feature the programs generate.", call. = F)
@@ -1408,6 +1408,7 @@ detect_absolute_path_script <- function(file) {
 anomaly_detection <- function(features, parsed_arguments, config_data) {
   machine_learning <- parsed_arguments$machine_learning
   path <- parsed_arguments$path
+  data_path<-set_data_path_to_features(parsed_arguments)
   cores <- parsed_arguments$cores
   load_model <- parsed_arguments$load_model
   save_model <- parsed_arguments$save_model
@@ -1423,13 +1424,13 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
     setup_python(absolute_path)
     tryCatch(expr = {
       switch(machine_learning,
-             "IF" = python_machine_learning_isolationforest(absolute_path, path, cores,
+             "IF" = python_machine_learning_isolationforest(absolute_path, path,data_path, cores,
                                                             rank, mean_rank, load_model, save_model, model_path,
                                                             config_data = config_data[['isolationforest']]),
-             "kNN" = python_machine_learning_kNN(absolute_path, path, cores,
+             "kNN" = python_machine_learning_kNN(absolute_path, path,data_path, cores,
                                                  rank, mean_rank, load_model, save_model, model_path,
                                                  config_data = config_data[['k_nearest_neigbhour']]),
-             "DAGMM" = python_machine_learning_dagmm(absolute_path, path,
+             "DAGMM" = python_machine_learning_dagmm(absolute_path, path,data_path,
                                                      rank, mean_rank, load_model, save_model, model_path,
                                                      config_data = config_data[['deep_autoencoding_gaussian_mixture_model']])
       )
@@ -1440,6 +1441,14 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
     machine_learning_randomforest(features, parsed_arguments$view, parsed_arguments$time_bin, cores,
                                   path, load_model, model_path, save_model,
                                   config_data = config_data[['randomforest']])
+  }
+}
+
+set_data_path_to_features<-function (parsed_arguments){
+  if(parsed_arguments$extracted_features){
+        return(parsed_arguments$data_path)
+  }else{
+    return(paste0(parsed_arguments$path,"Features.csv"))
   }
 }
 
@@ -1635,24 +1644,24 @@ setup_python <- function(path) {
 }
 
 # Use python function with the isolationforest
-python_machine_learning_isolationforest <- function(Input_path, Output_path, cores,
+python_machine_learning_isolationforest <- function(Input_path, Output_path,data_path, cores,
                                                     rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/IsolationForest_Anwendung.py"))
-  isolationforest_exec(Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
+  isolationforest_exec(Output_path,data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the kNN
-python_machine_learning_kNN <- function(Input_path, Output_path, cores,
+python_machine_learning_kNN <- function(Input_path, Output_path,data_path, cores,
                                         rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/kNN_Anwendung.py"))
-  knn_exec(Output_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
+  knn_exec(Output_path,data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the dagmm
-python_machine_learning_dagmm <- function(Input_path, Output_path,
+python_machine_learning_dagmm <- function(Input_path, Output_path,data_path,
                                           rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/DAGMM_Anwendung.py"))
-  dagmm_exec(Output_path, rank, mean_rank, load_model, save_model, model_path, config_data)
+  dagmm_exec(Output_path,data_path, rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use function with the randomforest, to predict the number of clusters the view is visting

@@ -10,8 +10,8 @@ import numpy as np
 from joblib import dump
 
 
-def read_features(path):
-    features = pd.read_csv((path + "Features.csv"), index_col=0)
+def read_features(data_path):
+    features = pd.read_csv(data_path, index_col=0)
     return features
 
 

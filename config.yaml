@@ -17,6 +17,8 @@ randomforest:
   # NULL to use Rs gernerated seed
   seed: 123
 
+# Anomalie detectors ---------------------------------------------------------------------------------------------------
+
 # Isolationforest Hyperparameter
 # https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html
 isolationforest:
@@ -40,7 +42,7 @@ k_nearest_neigbhour:
   n_neighbors: 20
   # Methode to calculate distance (largest, mean, median)
   method: mean
-  # Algorithm to optimize (ball_tree, kd_tree, brute, auto)
+  # Algorithm to optimize neigbhour search (ball_tree, kd_tree, brute, auto)
   algorithm: ball_tree
   # Distance metrics from scipy or scikit
   # 'cityblock', 'cosine', 'euclidean', 'l1', 'l2', 'manhattan','braycurtis', 'canberra', 'chebyshev', 'correlation', 'dice', 'hamming', 'jaccard', 'kulsinski', 'mahalanobis', 'matching', 'minkowski', 'rogerstanimoto', 'russellrao', 'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean', 'yule'

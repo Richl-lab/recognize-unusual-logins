@@ -7,12 +7,14 @@ randomforest:
   # Number of trees >0
   num.trees: 500
   # Features >0 & <=max(features)
+  # Number Variables as candidates at each split
   mtry: 2
   # Mininum of nodes >0
   min.node.size: 5
   # Samples to use >0 & <=1.0
   sample.fraction: 0.7
   # Maximum depth of the trees, 0 or NULL ->unlimited
+  # Regularization
   max.depth: 3
   # NULL to use Rs gernerated seed
   seed: 123
@@ -66,9 +68,12 @@ deep_autoencoding_gaussian_mixture_model:
   # "deserialize","elu","exponential","gelu","get","hard_sigmoid","linear","relu","selu","serialize","sigmoid","softmax","softplus","softsign","swish","tanh"
   est_activation: tanh
   # Dropout ratio, <1.0 or NULL=0 for not applied
+  # regularization factor to minimize overfitting
   est_dropout_ratio: 0.25
   # Epochs, min=100
+  # Times it iterates over the complete dataset
   epoch_size: 2500
   # Min=1, Max=max(samples)
+  # After x Samples the parameters of the network will be updated
   minibatch_size: 512
   random_seed: 123

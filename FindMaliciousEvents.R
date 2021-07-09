@@ -109,8 +109,6 @@ initalize_global_variables <- function() {
 # Help Function #
 #################
 
-#Falls die Option --help Angeben wird, wird folgender Text auf der Konsole ausgegeben
-
 help_output <- function() {
   cat("Usage: FindMaliciousEvents [file] [dir] [--options]",
       "Currently supported file formats are: csv. The File needs the following construction (Event ID, Host, Time, Logon ID, User, Source, Source Port, Logon Type).",
@@ -148,7 +146,9 @@ help_output <- function() {
       "-n        Plots will not be generated",
       "-i        Use the option to ignore the users from x to y, these could reflect the well-know users. The default is 0 to 10.000.",
       "          Start of ignore",
-      "          End of ignore", fill = 36)
+      "          End of ignore",
+      "-c        Insert a number behind -c to use another number of clusters, default is 13. The number should be higher than 3.",
+      fill = 37)
 }
 
 stop_and_help <- function(message, call. = F, domain = NULL) {
@@ -164,7 +164,6 @@ stop_and_help <- function(message, call. = F, domain = NULL) {
 # Setup #
 #########
 
-# function to load and activate all needed libraries
 load_libraries <- function() {
 
   suppressMessages(library(tools))
@@ -191,7 +190,6 @@ load_libraries <- function() {
   pdf(NULL) # GGplot will generate pdf else
 }
 
-# Function to parse Arguments from command line
 parse_arguments <- function(args, envr_args) {
   parsed_arguments <- list()
   parsed_arguments$path <- create_output_folder(args)
@@ -222,6 +220,7 @@ parse_arguments <- function(args, envr_args) {
   ignore_interval_users <- ignore_interval_users_argument(args)
   parsed_arguments$first_user_to_ignore <- ignore_interval_users$first_user_to_ignore
   parsed_arguments$last_user_to_ignore <- ignore_interval_users$last_user_to_ignore
+  parsed_arguments$number_clusters <- number_clusters_argument(args, number_clusters = 13)
   parsed_arguments$absolute_path <- detect_absolute_path_script(envr_args)
   return(parsed_arguments)
 }
@@ -241,12 +240,10 @@ create_output_folder <- function(args) {
   return(path)
 }
 
-# Return Data path
 data_path_argument <- function(args) {
   return(getAbsolutePath.default(as.character(args[1])))
 }
 
-# Return statistics argument
 statistics_argument <- function(args) {
 
   statistics <- F
@@ -257,7 +254,6 @@ statistics_argument <- function(args) {
   return(statistics)
 }
 
-# Return vview argument
 view_argument <- function(args, view) {
 
   if (length(grep("^-v$", as.character(args))) != 0) {
@@ -282,7 +278,6 @@ view_argument <- function(args, view) {
   return(view)
 }
 
-# Return machine_learning arguments
 machine_learning_argument <- function(args, machine_learning, group) {
 
   if (length(grep("^-m$", as.character(args))) != 0) {
@@ -312,7 +307,6 @@ machine_learning_argument <- function(args, machine_learning, group) {
 }
 
 
-# Return time bin arguments
 time_bin_argument <- function(args) {
 
   time_bin <- time_bin_day
@@ -364,7 +358,6 @@ time_bin_argument <- function(args) {
   return(list(time_bin = time_bin, time_bin_size = time_bin_size, days_instead = days_instead))
 }
 
-# Return rank arguments
 rank_argument <- function(args) {
   rank <- F
   mean_rank <- F
@@ -382,7 +375,6 @@ rank_argument <- function(args) {
   return(list(rank = rank, mean_rank = mean_rank))
 }
 
-# Return time window argument
 time_window_argument <- function(args) {
   completely <- F
   if (length(grep("^-d$", as.character(args))) != 0) {
@@ -419,7 +411,6 @@ time_window_argument <- function(args) {
   return(list(startdate = startdate, enddate = enddate, completely = completely))
 }
 
-# Return core argument
 cores_argument <- function(args) {
   if (length(grep("^-p$", as.character(args))) != 0) {
     if (is.na(args[grep("^-p$", as.character(args)) + 1])) {
@@ -442,7 +433,6 @@ cores_argument <- function(args) {
   return(cores)
 }
 
-# Return load model arguemnts
 load_model_argument <- function(args) {
   if (length(grep("^-lm$", as.character(args))) != 0) {
     if (is.na(args[grep("^-lm$", as.character(args)) + 1])) {
@@ -474,7 +464,6 @@ load_model_argument <- function(args) {
   return(list(load_model = load_model, model_path = model_path))
 }
 
-# Return save model argument
 save_model_argument <- function(args) {
   if (length(grep("^-s$", as.character(args))) != 0) {
     save_model <- T
@@ -485,7 +474,6 @@ save_model_argument <- function(args) {
   return(save_model)
 }
 
-# With out plots argument
 with_plots_argument <- function(args) {
   if (length(grep("^-n$", as.character(args))) != 0) {
     with_plots <- F
@@ -533,7 +521,33 @@ ignore_interval_users_argument <- function(args) {
   return(list(first_user_to_ignore = first_user_to_ignore, last_user_to_ignore = last_user_to_ignore))
 }
 
-# Main Function to generate or read Features
+number_clusters_argument <- function(args, number_clusters) {
+  if (length(grep("^-c", as.character(args))) != 0) {
+    if (is.na(args[grep("^-c$", as.character(args)) + 1])) {
+      stop_and_help("Missing a number of clusters behind the argument.", call. = F)
+    }else {
+      if (length(grep("[0-9]*", args[grep("^-c$", as.character(args)) + 1])) == 0) {
+        stop_and_help("You did not specify a numeric number of clusters.", call. = F)
+      }else {
+        tryCatch(
+          expr = {
+            number_clusters <- as.integer(args[grep("^-c$", as.character(args)) + 1])
+            if (number_clusters < 4 || number_clusters > 1000) {
+              stop_and_help("The inserted number of clusters is lower than 4 or higher than 1000.")
+            }else {
+              return(number_clusters)
+            }
+
+          }, warning = function(w) {
+            stop_and_help("The inserted Cluster number is not correct.")
+          }
+        )
+      }
+
+    }
+  }
+}
+
 extract_features_from_file <- function(parsed_arguments) {
   if (parsed_arguments$extracted_features) {
     features <- read_in_features_from_file(parsed_arguments$data_path)
@@ -575,18 +589,14 @@ read_in_features_from_file <- function(data_path) {
   }
 }
 
-# Read raw data
 read_in_data <- function(data_path, path) {
   # R loads all data in the memory, so if the raw data it cant read all without crashing, thats why it can be splited read in
   # Read in free memory
   memory <- get_free_memory()
 
-  # Read in data file size
   file_size <- as.numeric(file.info(data_path)$size) / 1000000
 
-  # End program if its not csv
   if (file_ext(data_path) == "csv") {
-    # If the user dont got enough rights, end
     if (file.access(data_path, read_permission) == -1) {
       stop_and_help("Missing a file for which you got the rights to read.", call. = F)
     }
@@ -712,7 +722,7 @@ feature_extraction_parted_from_file <- function(parsed_arguments) {
   back <- 0
   features <- data.frame()
 
-  # Read-in data until its 
+  # Read-in data until its
   while (finished == F) {
     data <- parted_read_in_data(parsed_arguments$path, row_multi, back)
 
@@ -742,7 +752,8 @@ feature_extraction_parted_from_file <- function(parsed_arguments) {
     grouped_features <- group_features(features, parsed_arguments$time_bin, parsed_arguments$cores,
                                        load_model = parsed_arguments$load_model,
                                        model_path = parsed_arguments$model_path,
-                                       save_model = parsed_arguments$save_model, path = parsed_arguments$path)
+                                       save_model = parsed_arguments$save_model, path = parsed_arguments$path,
+                                       number_clusters = parsed_arguments$number_clusters)
   }
   write.csv(grouped_features, paste0(parsed_arguments$path, "Features.csv"))
 
@@ -789,7 +800,7 @@ optimize_date <- function(data, parsed_arguments) {
   return(list(optimized_arguments = optimized_arguments, ignore_period = ignore_period, finished = finished))
 }
 
-# Function to check how many steps to go back and to do feature extraction 
+# Function to check how many steps to go back and to do feature extraction
 parted_feature_extraction <- function(data, optimized_arguments, back, row_multi) {
   edgeless_data_finished_flag <- delete_edges(data, optimized_arguments, back, row_multi)
   edgeless_data <- edgeless_data_finished_flag$edgeless_data
@@ -912,7 +923,7 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
   if (split != T && parsed_arguments$group == T) {
     features <- group_features(features, parsed_arguments$time_bin, cores, load_model = parsed_arguments$load_model,
                                model_path = parsed_arguments$model_path, save_model = parsed_arguments$save_model,
-                               path = parsed_arguments$path)
+                               path = parsed_arguments$path, number_clusters = parsed_arguments$number_clusters)
   }
 
   return(features)
@@ -1092,11 +1103,11 @@ Users_per_X_extractor <- function(data_identifier, view, ...) {
 ##############
 
 # Function to group data into clusters by their means
-group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path) {
-  # Calculate mean values
+
+group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path, number_clusters) {
+
   iter_means <- calculate_means(features, cores)
-  # Calculate clusters
-  number_clusters <- 13
+
   cluserted_features <- calculate_cluster(iter_means, features, number_clusters, label,
                                           load_model, model_path, save_model, path)
 
@@ -1107,30 +1118,9 @@ group_features <- function(features, time_bin, cores, label = F, load_model, mod
   }
 
   # If its not used as label 0-1 normalize it to speed up the machine_learning process
-  if (label == F) {
-    if (load_model) {
-      min_max <- readRDS(paste0(model_path, "min_max.rds"))
-      min_max_new <- calculate_min_max(cluserted_features, time_bin)
-      min_max <- as.numeric(unlist(calculate_from_two_min_max(min_max, min_max_new)))
-      if (time_bin == time_bin_day_and_hour) {
-        cluserted_features[, 3:(ncol(features) - 1)] <- complet_normalize_features(
-          cluserted_features[, 3:(ncol(features) - 1)], min_max)
-      }else {
-        cluserted_features[, 2:(ncol(features) - 1)] <- complet_normalize_features(
-          cluserted_features[, 2:(ncol(features) - 1)], min_max)
-      }
-    }else {
-      if (time_bin == time_bin_day_and_hour) {
-        cluserted_features[, 3:(ncol(features) - 1)] <- normalize(
-          cluserted_features[, 3:(ncol(features) - 1)], method = "range", range = c(0, 1))
-      }else {
-        cluserted_features[, 2:(ncol(features) - 1)] <- normalize(
-          cluserted_features[, 2:(ncol(features) - 1)], method = "range", range = c(0, 1))
-      }
-    }
-  }
+  normalized_clustered_features<-normalize_features(cluserted_features, label, load_model, model_path, time_bin)
 
-  return(cluserted_features)
+  return(normalized_clustered_features)
 }
 
 # Calculate means
@@ -1207,6 +1197,32 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
     return(labeled_mean_data)
   }
 
+}
+
+normalize_features <- function(cluserted_features, label, load_model, model_path, time_bin) {
+  if (label == F) {
+    if (load_model) {
+      min_max <- readRDS(paste0(model_path, "min_max.rds"))
+      min_max_new <- calculate_min_max(cluserted_features, time_bin)
+      min_max <- as.numeric(unlist(calculate_from_two_min_max(min_max, min_max_new)))
+      if (time_bin == time_bin_day_and_hour) {
+        cluserted_features[, 3:(ncol(cluserted_features) - 1)] <- complet_normalize_features(
+          cluserted_features[, 3:(ncol(cluserted_features) - 1)], min_max)
+      }else {
+        cluserted_features[, 2:(ncol(cluserted_features) - 1)] <- complet_normalize_features(
+          cluserted_features[, 2:(ncol(cluserted_features) - 1)], min_max)
+      }
+    }else {
+      if (time_bin == time_bin_day_and_hour) {
+        cluserted_features[, 3:(ncol(cluserted_features) - 1)] <- normalize(
+          cluserted_features[, 3:(ncol(cluserted_features) - 1)], method = "range", range = c(0, 1))
+      }else {
+        cluserted_features[, 2:(ncol(cluserted_features) - 1)] <- normalize(
+          cluserted_features[, 2:(ncol(cluserted_features) - 1)], method = "range", range = c(0, 1))
+      }
+    }
+  }
+  return(cluserted_features)
 }
 
 # Calculates the max and min
@@ -1408,7 +1424,7 @@ detect_absolute_path_script <- function(file) {
 anomaly_detection <- function(features, parsed_arguments, config_data) {
   machine_learning <- parsed_arguments$machine_learning
   path <- parsed_arguments$path
-  data_path<-set_data_path_to_features(parsed_arguments)
+  data_path <- set_data_path_to_features(parsed_arguments)
   cores <- parsed_arguments$cores
   load_model <- parsed_arguments$load_model
   save_model <- parsed_arguments$save_model
@@ -1424,13 +1440,13 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
     setup_python(absolute_path)
     tryCatch(expr = {
       switch(machine_learning,
-             "IF" = python_machine_learning_isolationforest(absolute_path, path,data_path, cores,
+             "IF" = python_machine_learning_isolationforest(absolute_path, path, data_path, cores,
                                                             rank, mean_rank, load_model, save_model, model_path,
                                                             config_data = config_data[['isolationforest']]),
-             "kNN" = python_machine_learning_kNN(absolute_path, path,data_path, cores,
+             "kNN" = python_machine_learning_kNN(absolute_path, path, data_path, cores,
                                                  rank, mean_rank, load_model, save_model, model_path,
                                                  config_data = config_data[['k_nearest_neigbhour']]),
-             "DAGMM" = python_machine_learning_dagmm(absolute_path, path,data_path,
+             "DAGMM" = python_machine_learning_dagmm(absolute_path, path, data_path,
                                                      rank, mean_rank, load_model, save_model, model_path,
                                                      config_data = config_data[['deep_autoencoding_gaussian_mixture_model']])
       )
@@ -1440,15 +1456,15 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
   }else {
     machine_learning_randomforest(features, parsed_arguments$view, parsed_arguments$time_bin, cores,
                                   path, load_model, model_path, save_model,
-                                  config_data = config_data[['randomforest']])
+                                  config_data = config_data[['randomforest']], parsed_arguments$number_clusters)
   }
 }
 
-set_data_path_to_features<-function (parsed_arguments){
-  if(parsed_arguments$extracted_features){
-        return(parsed_arguments$data_path)
-  }else{
-    return(paste0(parsed_arguments$path,"Features.csv"))
+set_data_path_to_features <- function(parsed_arguments) {
+  if (parsed_arguments$extracted_features) {
+    return(parsed_arguments$data_path)
+  }else {
+    return(paste0(parsed_arguments$path, "Features.csv"))
   }
 }
 
@@ -1644,31 +1660,31 @@ setup_python <- function(path) {
 }
 
 # Use python function with the isolationforest
-python_machine_learning_isolationforest <- function(Input_path, Output_path,data_path, cores,
+python_machine_learning_isolationforest <- function(Input_path, Output_path, data_path, cores,
                                                     rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/IsolationForest_Anwendung.py"))
-  isolationforest_exec(Output_path,data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
+  isolationforest_exec(Output_path, data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the kNN
-python_machine_learning_kNN <- function(Input_path, Output_path,data_path, cores,
+python_machine_learning_kNN <- function(Input_path, Output_path, data_path, cores,
                                         rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/kNN_Anwendung.py"))
-  knn_exec(Output_path,data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
+  knn_exec(Output_path, data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the dagmm
-python_machine_learning_dagmm <- function(Input_path, Output_path,data_path,
+python_machine_learning_dagmm <- function(Input_path, Output_path, data_path,
                                           rank, mean_rank, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/DAGMM_Anwendung.py"))
-  dagmm_exec(Output_path,data_path, rank, mean_rank, load_model, save_model, model_path, config_data)
+  dagmm_exec(Output_path, data_path, rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 
 # Use function with the randomforest, to predict the number of clusters the view is visting
 machine_learning_randomforest <- function(features, view, time_bin, cores,
-                                          path, load_model, model_path, save_model, config_data) {
+                                          path, load_model, model_path, save_model, config_data, number_clusters) {
   #Clustert die Daten und gibt die Mittelwertdaten+ die Clusternummer als Label zurück
-  means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path, save_model, path)
+  means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path, save_model, path, number_clusters)
 
   if (load_model) {
     model <- load_randomforest_model(model_path)

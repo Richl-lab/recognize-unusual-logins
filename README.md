@@ -1,5 +1,8 @@
 
 <p align="center">
+  <a href="https://github.com/Richl-lab/recognize-unusual-logins/">
+    <img src="misc/Trojan_Network.jpeg" alt="Logo" width="80" height="80">
+  </a>
 
   <h3 align="center">FindMaliciousEvents</h3>
 

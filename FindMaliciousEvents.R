@@ -148,7 +148,8 @@ help_output <- function() {
       "          Start of ignore",
       "          End of ignore",
       "-c        Insert a number behind -c to use another number of clusters, default is 13. The number should be higher than 3.",
-      fill = 37)
+      "-sc       Using spectral Clustering instead of k-Means",
+      fill = 38)
 }
 
 stop_and_help <- function(message, call. = F, domain = NULL) {
@@ -181,6 +182,7 @@ load_libraries <- function() {
   suppressMessages(library(e1071))
   suppressMessages(library(clue))
   suppressMessages(library(yaml))
+  suppressMessages(library(kernlab))
 
 
   # Options
@@ -221,6 +223,7 @@ parse_arguments <- function(args, envr_args) {
   parsed_arguments$first_user_to_ignore <- ignore_interval_users$first_user_to_ignore
   parsed_arguments$last_user_to_ignore <- ignore_interval_users$last_user_to_ignore
   parsed_arguments$number_clusters <- number_clusters_argument(args, number_clusters = 13)
+  parsed_arguments$spectral_clustering <- spectral_clustering_argument(args, spectral_clustering = F)
   parsed_arguments$absolute_path <- detect_absolute_path_script(envr_args)
   return(parsed_arguments)
 }
@@ -546,6 +549,14 @@ number_clusters_argument <- function(args, number_clusters) {
 
     }
   }
+  return(number_clusters)
+}
+
+spectral_clustering_argument <- function(args, spectral_clustering) {
+  if (length(grep("^-sc$", as.character(args))) != 0) {
+    with_plots <- F
+  }
+  return(spectral_clustering)
 }
 
 extract_features_from_file <- function(parsed_arguments) {
@@ -753,7 +764,7 @@ feature_extraction_parted_from_file <- function(parsed_arguments) {
                                        load_model = parsed_arguments$load_model,
                                        model_path = parsed_arguments$model_path,
                                        save_model = parsed_arguments$save_model, path = parsed_arguments$path,
-                                       number_clusters = parsed_arguments$number_clusters)
+                                       number_clusters = parsed_arguments$number_clusters, spectral_clustering = parsed_arguments$spectral_clustering)
   }
   write.csv(grouped_features, paste0(parsed_arguments$path, "Features.csv"))
 
@@ -921,9 +932,10 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
 
   # If its splitted it needs to be done later on the complet feature set
   if (split != T && parsed_arguments$group == T) {
-    features <- group_features(features, parsed_arguments$time_bin, cores, load_model = parsed_arguments$load_model,
+    features <- group_features(features, time_bin = parsed_arguments$time_bin, cores, load_model = parsed_arguments$load_model,
                                model_path = parsed_arguments$model_path, save_model = parsed_arguments$save_model,
-                               path = parsed_arguments$path, number_clusters = parsed_arguments$number_clusters)
+                               path = parsed_arguments$path, number_clusters = parsed_arguments$number_clusters,
+                               spectral_clustering = parsed_arguments$spectral_clustering)
   }
 
   return(features)
@@ -1104,12 +1116,12 @@ Users_per_X_extractor <- function(data_identifier, view, ...) {
 
 # Function to group data into clusters by their means
 
-group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path, number_clusters) {
+group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path, number_clusters, spectral_clustering) {
 
   iter_means <- calculate_means(features, cores)
 
   cluserted_features <- calculate_cluster(iter_means, features, number_clusters, label,
-                                          load_model, model_path, save_model, path)
+                                          load_model, model_path, save_model, path, spectral_clustering)
 
   # Save model
   if (save_model && label == F) {
@@ -1118,7 +1130,7 @@ group_features <- function(features, time_bin, cores, label = F, load_model, mod
   }
 
   # If its not used as label 0-1 normalize it to speed up the machine_learning process
-  normalized_clustered_features<-normalize_features(cluserted_features, label, load_model, model_path, time_bin)
+  normalized_clustered_features <- if_needed_normalize_features(cluserted_features, label, load_model, model_path, time_bin)
 
   return(normalized_clustered_features)
 }
@@ -1158,7 +1170,7 @@ calculate_means <- function(features, cores) {
 }
 
 # Cluster
-calculate_cluster <- function(iter_means, features, number_clusters, label, load_model, model_path, save_model, path) {
+calculate_cluster <- function(iter_means, features, number_clusters, label, load_model, model_path, save_model, path, spectral_clustering) {
 
   # If a loaded model is used, its also needed to load the old cluster
   if (load_model) {
@@ -1166,11 +1178,16 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
     groups <- data.frame(Groups = as.numeric(cl_predict(cluster, iter_means[[2]], type = "class_id")))
   }else {
     # Seed + cluster data
-    set.seed(123)
-    cluster <- kmeans(iter_means[[2]], number_clusters, algorithm = "Hartigan-Wong", nstart = 100)
+    if (spectral_clustering) {
+      cluster <- specc(as.matrix(iter_means[[2]]), number_clusters, seed = 123)
+      groups <- data.frame(Groups = cluster@.Data)
+    }else {
+      set.seed(123)
+      cluster <- stats::kmeans(x = iter_means[[2]], centers = number_clusters, algorithm = "Hartigan-Wong", nstart = 100)
 
-    # Extract cluster numbers as labels/feature
-    groups <- data.frame(Groups = cluster[["cluster"]])
+      # Extract cluster numbers as labels/feature
+      groups <- data.frame(Groups = cluster[["cluster"]])
+    }
   }
 
   if (save_model) {
@@ -1199,7 +1216,7 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
 
 }
 
-normalize_features <- function(cluserted_features, label, load_model, model_path, time_bin) {
+if_needed_normalize_features <- function(cluserted_features, label, load_model, model_path, time_bin) {
   if (label == F) {
     if (load_model) {
       min_max <- readRDS(paste0(model_path, "min_max.rds"))
@@ -1456,7 +1473,8 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
   }else {
     machine_learning_randomforest(features, parsed_arguments$view, parsed_arguments$time_bin, cores,
                                   path, load_model, model_path, save_model,
-                                  config_data = config_data[['randomforest']], parsed_arguments$number_clusters)
+                                  config_data = config_data[['randomforest']], parsed_arguments$number_clusters,
+                                  spectral_clustering = parsed_arguments$spectral_clustering)
   }
 }
 
@@ -1684,7 +1702,7 @@ python_machine_learning_dagmm <- function(Input_path, Output_path, data_path,
 machine_learning_randomforest <- function(features, view, time_bin, cores,
                                           path, load_model, model_path, save_model, config_data, number_clusters) {
   #Clustert die Daten und gibt die Mittelwertdaten+ die Clusternummer als Label zurück
-  means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path, save_model, path, number_clusters)
+  means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path, save_model, path, number_clusters, spectral_clustering)
 
   if (load_model) {
     model <- load_randomforest_model(model_path)
@@ -1879,7 +1897,7 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
       }
 
 
-      colors_inside <- alpha(colors, 0.2)
+      colors_inside <- ggplot2::alpha(colors, 0.2)
 
       jpeg(paste0(path, i, "_", iterator[i, 1], ".jpg"), width = 1900, height = 1900, quality = 100,
            pointsize = 40, res = 120)

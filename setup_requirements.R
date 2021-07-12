@@ -9,7 +9,7 @@ repository <- "https://cran.r-project.org/"
 .libPaths("~/.R")
 
 tryCatch(expr = {
-  cat("Installing required R packages, that could take some time to process.", fill=1)
+  cat("Installing required R packages, that could take some time to process.", fill = 1)
   packages <- c("dplyr",
                 "ggplot2",
                 "tools",
@@ -25,9 +25,11 @@ tryCatch(expr = {
                 "caret",
                 "e1071",
                 "clue",
-                "yaml")
+                "yaml",
+                "kernlab"
+  )
   suppressMessages(install.packages(setdiff(packages, rownames(installed.packages())), repos = repository, quiet = T))
-  }, error = function(e) {
-    stop("Error on installing all required R packages.",e, call. = F)
-  }
+}, error = function(e) {
+  stop("Error on installing all required R packages.", e, call. = F)
+}
 )

@@ -7,7 +7,7 @@
   <h3 align="center">FindMaliciousEvents</h3>
 
   <p align="center">
-    This tool is used to find anomalies or suspicious login events especially to detect lateral movement.
+    This tool is used to find anomalies or suspicious login events, especially to detect lateral movement.
     <br />
     <a href="https://github.com/Richl-lab/recognize-unusual-logins/blob/main/README.md"><strong>Explore the docs »</strong></a>
     <br />
@@ -44,9 +44,9 @@ This tool is used to find anomalies or suspicious login events.
 
 ### Prerequisites & Installation
 This tool will only work in Linux (tested with Ubuntu 20.04).
-To use the tool, R and Python 3.8 needs to be installed. Furthermore is a requirement an existing python enviroment in the folder with conditions of the requirements.txt.
+To use the tool, R and Python 3.8 needs to be installed. Furthermore, is a requirement an existing python environment in the folder with conditions of the requirements.txt.
 
-To install and configure use the following script:
+To install and configure, use the following script:
    ```sh
    . setup.sh
    ```
@@ -77,12 +77,12 @@ The data needs the following structure:
 | Integer      | Numeric | Date | Numeric(hex)     | Numeric | Numeric | Integer| Integer |
 | 4624     | 1112223      | "2021-06-01 00:00:02" | 0x233eef      | 33339993 | 3333888 | 0 | 2 |
 
-Users with smaller numbers then 10000 will be removed, because they are interpreted as Well-Known-SIDs. The Software was tested with anonymized Users, Hosts and Sources so there is no guarantee that it works without that.
+(Default) Users with smaller numbers than 10000 will be removed, because they are interpreted as Well-Known-SIDs. The Software was tested with anonymized Users, Hosts and Sources, so there is no guarantee that it works without that.
 
 ## Usage
-After usage the r script should be executable.
+After usage, the r-script should be executable.
 
-With seted link:
+With set link:
    ```sh
    FindMaliciousEvents args
    ```
@@ -110,7 +110,7 @@ Find unusual logins with the use of kNN and rank it:
    ```sh
    FindMaliciousEvents raw_data.csv . -m kNN -r
    ```
-Find unusual logins from a existing feature set, that was create with this software:
+Find unusual logins from a existing feature set, that was created with this software:
    ```sh
    FindMaliciousEvents features.csv . -e
    ```
@@ -119,13 +119,11 @@ Find unusual logins from a existing feature set, that was create with this softw
 ![Tool Demo](misc/tool_demo.gif)
    
 ## Maintenance
-If you want to add new features, see [Maintenance Directory](https://github.com/Richl-lab/recognize-unusual-logins/tree/main/maintenance). It contains a discription to add different kind of features. 
+If you want to add new features, see [Maintenance Directory](https://github.com/Richl-lab/recognize-unusual-logins/tree/main/maintenance). It contains a description to add different kind of features. 
 
 
 ## Roadmap
-* Error handling
-*
-* Check if loaded model and data got same features
+
 
 ## License
 Distributed under the MIT License. See [LICENSE](https://github.com/Richl-lab/recognize-unusual-logins/blob/main/LICENSE) for more information.

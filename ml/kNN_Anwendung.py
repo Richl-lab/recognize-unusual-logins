@@ -13,7 +13,7 @@ sys.path.insert(1, python_script_directory)
 import Pre_and_post_processing as pp
 
 
-def knn_exec(path,data_path, cores, rank, mean_rank, load_model, save_model, model_path, config_data):
+def knn_exec(path, data_path, cores, rank, mean_rank, load_model, save_model, model_path, config_data):
     features = pp.read_features(data_path)
 
     columns = pp.get_column_names(features)
@@ -29,7 +29,7 @@ def knn_exec(path,data_path, cores, rank, mean_rank, load_model, save_model, mod
 
     pp.save_model_to_path(model, path, save_model)
 
-    pred, scores = predict(model)
+    pred, scores = predict(model, features)
 
     features = insert_prediction_to_features(pred, scores, features)
 
@@ -56,10 +56,10 @@ def validate_loaded_model(model):
         sys.exit(1)
 
 
-def predict(model):
+def predict(model, features):
     try:
-        pred = model.labels_
-        scores = model.decision_scores_
+        pred = model.predict(features)
+        scores = model.decision_function(features)
     except:
         print("The features of the data should be the same like the model features.")
         sys.exit(1)

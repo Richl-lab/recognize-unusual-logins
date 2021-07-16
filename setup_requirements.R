@@ -29,6 +29,7 @@ tryCatch(expr = {
                 "kernlab"
   )
   suppressMessages(install.packages(setdiff(packages, rownames(installed.packages())), repos = repository, quiet = T))
+  write('.libPaths("~/.R")', file=file.path("~",".Rprofile"),append = T)
 }, error = function(e) {
   stop("Error on installing all required R packages.", e, call. = F)
 }

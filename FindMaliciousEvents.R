@@ -149,7 +149,9 @@ help_output <- function() {
       "          End of ignore",
       "-c        Insert a number behind -c to use another number of clusters, default is 13. The number should be higher than 3.",
       "-sc       Using spectral Clustering instead of k-Means",
-      fill = 38)
+      "-ro       If the data is readed in parts, this argument with number behind can establish the number of ",
+      "          rows that should be readed per round. The default is 10 Milliom",
+      fill = 40)
 }
 
 stop_and_help <- function(message, call. = F, domain = NULL) {
@@ -196,34 +198,35 @@ parse_arguments <- function(args, envr_args) {
   parsed_arguments <- list()
   parsed_arguments$path <- create_output_folder(args)
   parsed_arguments$data_path <- data_path_argument(args)
-  parsed_arguments$statistics <- statistics_argument(args)
+  parsed_arguments$statistics <- statistics_argument(args, statistics = F)
   parsed_arguments$view <- view_argument(args, view = view_user)
   machine_learning_and_group <- machine_learning_argument(args, machine_learning = "kNN", group = T)
   parsed_arguments$machine_learning <- machine_learning_and_group$machine_learning
   parsed_arguments$group <- machine_learning_and_group$group
-  time_arguments <- time_bin_argument(args)
+  time_arguments <- time_bin_argument(args, time_bin = time_bin_day, time_bin_size = 0, days_instead = F)
   parsed_arguments$time_bin <- time_arguments$time_bin
   parsed_arguments$time_bin_size <- time_arguments$time_bin_size
   parsed_arguments$days_instead <- time_arguments$days_instead
-  time_windows <- time_window_argument(args)
+  time_windows <- time_window_argument(args, completely = F, startdate = NULL, enddate = NULL)
   parsed_arguments$startdate <- time_windows$startdate
   parsed_arguments$enddate <- time_windows$enddate
   parsed_arguments$completely <- time_windows$completely
-  rank_argsuments <- rank_argument(args)
+  rank_argsuments <- rank_argument(args, rank = F, mean_rank = F)
   parsed_arguments$rank <- rank_argsuments$rank
   parsed_arguments$mean_rank <- rank_argsuments$mean_rank
-  parsed_arguments$cores <- cores_argument(args)
-  loaded_model <- load_model_argument(args)
+  parsed_arguments$cores <- cores_argument(args, cores = (detectCores() - 1))
+  loaded_model <- load_model_argument(args, model_path = "", load_model = F)
   parsed_arguments$load_model <- loaded_model$load_model
   parsed_arguments$model_path <- loaded_model$model_path
-  parsed_arguments$save_model <- save_model_argument(args)
-  parsed_arguments$with_plots <- with_plots_argument(args)
-  parsed_arguments$extracted_features <- extracted_features_argument(args)
-  ignore_interval_users <- ignore_interval_users_argument(args)
+  parsed_arguments$save_model <- save_model_argument(args, save_model = F)
+  parsed_arguments$with_plots <- with_plots_argument(args, with_plots = T)
+  parsed_arguments$extracted_features <- extracted_features_argument(args, extracted_features = F)
+  ignore_interval_users <- ignore_interval_users_argument(args, first_user_to_ignore = 0, last_user_to_ignore = 10000)
   parsed_arguments$first_user_to_ignore <- ignore_interval_users$first_user_to_ignore
   parsed_arguments$last_user_to_ignore <- ignore_interval_users$last_user_to_ignore
   parsed_arguments$number_clusters <- number_clusters_argument(args, number_clusters = 13)
   parsed_arguments$spectral_clustering <- spectral_clustering_argument(args, spectral_clustering = F)
+  parsed_arguments$parted_readed_rows <- rows_argument(args, parted_readed_rows = 10000000)
   parsed_arguments$absolute_path <- detect_absolute_path_script(envr_args)
   return(parsed_arguments)
 }
@@ -247,9 +250,7 @@ data_path_argument <- function(args) {
   return(getAbsolutePath.default(as.character(args[1])))
 }
 
-statistics_argument <- function(args) {
-
-  statistics <- F
+statistics_argument <- function(args, statistics) {
 
   if (length(grep("^-os$", as.character(args))) != 0) {
     statistics <- T
@@ -310,11 +311,7 @@ machine_learning_argument <- function(args, machine_learning, group) {
 }
 
 
-time_bin_argument <- function(args) {
-
-  time_bin <- time_bin_day
-  time_bin_size <- 0
-  days_instead <- F
+time_bin_argument <- function(args, time_bin, time_bin_size, days_instead) {
 
   if (length(grep("^-t$", as.character(args))) != 0) {
     if (is.na(args[grep("^-t$", as.character(args)) + 1])) {
@@ -361,9 +358,8 @@ time_bin_argument <- function(args) {
   return(list(time_bin = time_bin, time_bin_size = time_bin_size, days_instead = days_instead))
 }
 
-rank_argument <- function(args) {
-  rank <- F
-  mean_rank <- F
+rank_argument <- function(args, rank, mean_rank) {
+
   if (length(grep("^-r$", as.character(args))) != 0) {
     if (is.na(args[grep("^-r$", as.character(args)) + 1]) != T &&
       length(grep("-", args[grep("^-r$", as.character(args)) + 1])) == F) {
@@ -378,8 +374,8 @@ rank_argument <- function(args) {
   return(list(rank = rank, mean_rank = mean_rank))
 }
 
-time_window_argument <- function(args) {
-  completely <- F
+time_window_argument <- function(args, completely, startdate, enddate) {
+
   if (length(grep("^-d$", as.character(args))) != 0) {
     if (is.na(args[grep("^-d$", as.character(args)) + 1])) {
       stop_and_help("You did not specify an option for start- and enddate (m,v).", call. = F)
@@ -407,14 +403,11 @@ time_window_argument <- function(args) {
         stop_and_help("You did not specify a valid option for the start- and enddate (m,v).", call. = F)
       }
     }
-  }else {
-    startdate <- NULL
-    enddate <- NULL
   }
   return(list(startdate = startdate, enddate = enddate, completely = completely))
 }
 
-cores_argument <- function(args) {
+cores_argument <- function(args, cores) {
   if (length(grep("^-p$", as.character(args))) != 0) {
     if (is.na(args[grep("^-p$", as.character(args)) + 1])) {
       stop_and_help("Missing a number of logical processors to use.", call. = F)
@@ -430,13 +423,11 @@ cores_argument <- function(args) {
         stop_and_help("You did not specify a number of cores, based on your processor.", call. = F)
       })
     }
-  }else {
-    cores <- detectCores() - 1
   }
   return(cores)
 }
 
-load_model_argument <- function(args) {
+load_model_argument <- function(args, model_path, load_model) {
   if (length(grep("^-lm$", as.character(args))) != 0) {
     if (is.na(args[grep("^-lm$", as.character(args)) + 1])) {
       stop_and_help("Missing a path to the directory with the model information.", call. = F)
@@ -460,46 +451,34 @@ load_model_argument <- function(args) {
       }
       load_model <- T
     }
-  }else {
-    model_path <- ""
-    load_model <- F
   }
   return(list(load_model = load_model, model_path = model_path))
 }
 
-save_model_argument <- function(args) {
+save_model_argument <- function(args, save_model) {
   if (length(grep("^-s$", as.character(args))) != 0) {
     save_model <- T
     dir.create(paste0(path, "model/"))
-  }else {
-    save_model <- F
   }
   return(save_model)
 }
 
-with_plots_argument <- function(args) {
+with_plots_argument <- function(args, with_plots) {
   if (length(grep("^-n$", as.character(args))) != 0) {
     with_plots <- F
-  }else {
-    with_plots <- T
   }
   return(with_plots)
 }
 
 # Extracted Feature Argument
-extracted_features_argument <- function(args) {
+extracted_features_argument <- function(args, extracted_features) {
   if (length(grep("^-e$", as.character(args))) != 0) {
     extracted_features <- T
-  }else {
-    extracted_features <- F
   }
   return(extracted_features)
 }
 
-ignore_interval_users_argument <- function(args) {
-
-  first_user_to_ignore <- 0
-  last_user_to_ignore <- 10000
+ignore_interval_users_argument <- function(args, first_user_to_ignore, last_user_to_ignore) {
 
   if (length(grep("^-i$", as.character(args))) != 0) {
     if (is.na(args[grep("^-i$", as.character(args)) + 1]) || is.na(args[grep("^-i$", as.character(args)) + 2])) {
@@ -559,6 +538,26 @@ spectral_clustering_argument <- function(args, spectral_clustering) {
   return(spectral_clustering)
 }
 
+rows_argument <- function(args, parted_readed_rows) {
+  if (length(grep("^-ro$", as.character(args))) != 0) {
+    if (is.na(args[grep("^-ro$", as.character(args)) + 1])) {
+      stop_and_help("Missing a number of rows behind the -ro argument.", call. = F)
+    }else {
+      if (length(grep("[0-9]*", args[grep("^-ro$", as.character(args)) + 1])) == 0) {
+        stop_and_help("You did not specify a numeric number of rows.", call. = F)
+      }else {
+        parted_readed_rows <- args[grep("^-ro$", as.character(args)) + 1]
+
+        if (parted_readed_rows < 100000) {
+          stop_and_help("The number of rows should be not lower than 100.000.")
+        }
+      }
+
+    }
+  }
+  return(parted_readed_rows)
+}
+
 extract_features_from_file <- function(parsed_arguments) {
   if (parsed_arguments$extracted_features) {
     features <- read_in_features_from_file(parsed_arguments$data_path)
@@ -570,7 +569,7 @@ extract_features_from_file <- function(parsed_arguments) {
       if (is.null(parsed_arguments$startdate) == T && parsed_arguments$completely == F) {
         stop_and_help("Missing a start- and enddate, if the file is to large to be splitted.", call. = F)
       }
-      # TODO=loop{edges,extract features)
+
       features <- feature_extraction_parted_from_file(parsed_arguments)
     }
   }
@@ -602,7 +601,6 @@ read_in_features_from_file <- function(data_path) {
 
 read_in_data <- function(data_path, path) {
   # R loads all data in the memory, so if the raw data it cant read all without crashing, thats why it can be splited read in
-  # Read in free memory
   memory <- get_free_memory()
 
   file_size <- as.numeric(file.info(data_path)$size) / 1000000
@@ -621,7 +619,7 @@ read_in_data <- function(data_path, path) {
       system(paste0("sort -k3 -t, ", data_path, " >> ", path, time_sorted_filename))
       return(split)
     }else {
-      # <40% read data
+
       tryCatch(expr = {
         data <- read.csv(data_path, colClasses = c("integer", "numeric", "POSIXct", "numeric", "numeric", "numeric", "integer", "integer"), header = F)
       }, error = function(e) {
@@ -647,7 +645,6 @@ read_in_data <- function(data_path, path) {
 
 }
 
-# Get the free memory
 get_free_memory <- function() {
   memory <- system('free -m', intern = T)
   memory <- strsplit(memory, " ")
@@ -656,13 +653,13 @@ get_free_memory <- function() {
 }
 
 # If the file size is to large, read it in parts
-parted_read_in_data <- function(path, row_multi, back) {
+parted_read_in_data <- function(path, row_multi, back, parted_readed_rows) {
   tryCatch(expr = {
     # read in x rows and skip all before
-    data_new <- read.csv(paste0(path, time_sorted_filename), nrows = 10000000, skip = (row_multi * 10000000) - back,
+    data_new <- read.csv(paste0(path, time_sorted_filename), nrows = parted_readed_rows, skip = (row_multi * parted_readed_rows) - back,
                          colClasses = c("integer", "numeric", "POSIXct", "numeric", "numeric", "numeric", "integer", "integer"),
                          header = F)
-    colnames(data_new) <- c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type") #ActivityID oder LogonGUID
+    colnames(data_new) <- c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type")
     data_new <- data_new[(data_new$Event_ID == 4624),]
     return(data_new)
   }, error = function(e) {
@@ -689,7 +686,6 @@ extract_features <- function(data, parsed_arguments) {
     data_statistics(data, parsed_arguments, "pre")
   }
 
-  # Do preprocessing
   data <- preprocessing(data, parsed_arguments)
 
   if (parsed_arguments$statistics) {
@@ -725,7 +721,7 @@ set_start_and_enddate <- function(data, parsed_arguments) {
   return(list(startdate = startdate, enddate = enddate))
 }
 
-# Feature extraction in parts
+
 feature_extraction_parted_from_file <- function(parsed_arguments) {
 
   finished <- F
@@ -733,9 +729,9 @@ feature_extraction_parted_from_file <- function(parsed_arguments) {
   back <- 0
   features <- data.frame()
 
-  # Read-in data until its
+  # Read-in data until its finished
   while (finished == F) {
-    data <- parted_read_in_data(parsed_arguments$path, row_multi, back)
+    data <- parted_read_in_data(parsed_arguments$path, row_multi, back, parsed_arguments$parted_readed_rows)
 
     if (is.null(nrow(data)) == F) {
 
@@ -815,7 +811,7 @@ optimize_date <- function(data, parsed_arguments) {
 parted_feature_extraction <- function(data, optimized_arguments, back, row_multi) {
   edgeless_data_finished_flag <- delete_edges(data, optimized_arguments, back, row_multi)
   edgeless_data <- edgeless_data_finished_flag$edgeless_data
-  new_back <- (10000000 - (nrow(edgeless_data))) + back # TODO=global oder Argument
+  new_back <- (optimized_arguments$parted_readed_rows - (nrow(edgeless_data))) + back
   preprocessed_data <- preprocessing(edgeless_data, optimized_arguments)
   features <- feature_extraction(preprocessed_data, optimized_arguments, split = T)
   return(list(features = features, finished = edgeless_data_finished_flag$finished, back = new_back))
@@ -828,7 +824,7 @@ delete_edges <- function(data, optimized_arguments, back, row_multi) {
 
   tryCatch(expr = {
     next_row_of_data <- read.csv(paste0(optimized_arguments$path, time_sorted_filename), nrows = 1,
-                                 skip = ((row_multi + 1) * 10000000) - back + 1,
+                                 skip = ((row_multi + 1) * optimized_arguments$parted_readed_rows) - back + 1,
                                  colClasses = c("integer", "numeric", "POSIXct", "numeric", "numeric", "numeric", "integer", "integer"),
                                  header = F, col.names = c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type"))
     if (date(data[nrow(data), 3]) == date(next_row_of_data[1, 3]) && time_bin == time_bin_day) {
@@ -879,8 +875,8 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
   registerDoParallel(cluster_of_cores)
 
   features <- data.frame()
-  # If source view has been choosen delet all NA values
-  if (view == 5) { # TODO=Warum oder globale Variable anstatt 5
+  # If source view has been choosen delete all NA values
+  if (view == view_source_ip) {
     data <- data[(is.na(data$Source) != T),]
   }
 
@@ -1115,15 +1111,14 @@ Users_per_X_extractor <- function(data_identifier, view, ...) {
 ##############
 
 # Function to group data into clusters by their means
-
 group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path, number_clusters, spectral_clustering) {
-
+  cat("Features will be grouped now.",fill = 1)
   iter_means <- calculate_means(features, cores)
 
   cluserted_features <- calculate_cluster(iter_means, features, number_clusters, label,
                                           load_model, model_path, save_model, path, spectral_clustering)
 
-  # Save model
+  # Save min-max
   if (save_model && label == F) {
     min_max <- calculate_min_max(cluserted_features, time_bin)
     saveRDS(min_max, paste0(path, "model/min_max.rds"))
@@ -1138,7 +1133,6 @@ group_features <- function(features, time_bin, cores, label = F, load_model, mod
 # Calculate means
 calculate_means <- function(features, cores) {
 
-  # ignore warnings
   options(warn = -1)
   # Ignore Feature like time
   tryCatch(expr = {
@@ -1414,9 +1408,9 @@ write_users_with_most_logon_proportion <- function(data, path) {
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------
 
-# If the script start from console as link file, its needed to extract the path to the original path
+# If the script start from console original path is needed
 detect_absolute_path_script <- function(file) {
-  # Path to link file
+
   file_loc <- sub("[^/]*$", "", sub("--file=", "", file[grep("--file=.*", file)]))
   if (file_ext(file_loc) == "ln") {
     if (substring(file_loc, 1, 1) == ".") {
@@ -1437,7 +1431,7 @@ detect_absolute_path_script <- function(file) {
   return(absolute_path)
 }
 
-# Function for anomaly detection
+
 anomaly_detection <- function(features, parsed_arguments, config_data) {
   machine_learning <- parsed_arguments$machine_learning
   path <- parsed_arguments$path
@@ -1450,6 +1444,7 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
   mean_rank <- parsed_arguments$mean_rank
   absolute_path <- parsed_arguments$absolute_path
 
+  cat("Machine Learning is processing...")
 
   if (machine_learning == "IF" ||
     machine_learning == "kNN" ||
@@ -1777,7 +1772,6 @@ load_randomforest_model <- function(model_path) {
   return(model)
 }
 
-# Grid search randomforest
 grid_search_randomforest <- function(means_label) {
   # Split the means values in train and test data
   train <- means_label[sample(seq_len(nrow(means_label)), nrow(means_label) * 0.7),]
@@ -1940,5 +1934,4 @@ delete_empty_directory <- function(path) {
   }
 }
 
-# Calling main-function with the arguments
 main(args)

@@ -215,10 +215,10 @@ parse_arguments <- function(args, envr_args) {
   parsed_arguments$rank <- rank_argsuments$rank
   parsed_arguments$mean_rank <- rank_argsuments$mean_rank
   parsed_arguments$cores <- cores_argument(args, cores = (detectCores() - 1))
-  loaded_model <- load_model_argument(args, model_path = "", load_model = F)
+  loaded_model <- load_model_argument(args, machine_learning = parsed_arguments$machine_learning, model_path = "", load_model = F)
   parsed_arguments$load_model <- loaded_model$load_model
   parsed_arguments$model_path <- loaded_model$model_path
-  parsed_arguments$save_model <- save_model_argument(args, save_model = F)
+  parsed_arguments$save_model <- save_model_argument(args, path = parsed_arguments$path, save_model = F)
   parsed_arguments$with_plots <- with_plots_argument(args, with_plots = T)
   parsed_arguments$extracted_features <- extracted_features_argument(args, extracted_features = F)
   ignore_interval_users <- ignore_interval_users_argument(args, first_user_to_ignore = 0, last_user_to_ignore = 10000)
@@ -427,7 +427,7 @@ cores_argument <- function(args, cores) {
   return(cores)
 }
 
-load_model_argument <- function(args, model_path, load_model) {
+load_model_argument <- function(args, machine_learning, model_path, load_model) {
   if (length(grep("^-lm$", as.character(args))) != 0) {
     if (is.na(args[grep("^-lm$", as.character(args)) + 1])) {
       stop_and_help("Missing a path to the directory with the model information.", call. = F)
@@ -455,7 +455,7 @@ load_model_argument <- function(args, model_path, load_model) {
   return(list(load_model = load_model, model_path = model_path))
 }
 
-save_model_argument <- function(args, save_model) {
+save_model_argument <- function(args, path, save_model) {
   if (length(grep("^-s$", as.character(args))) != 0) {
     save_model <- T
     dir.create(paste0(path, "model/"))
@@ -1112,7 +1112,7 @@ Users_per_X_extractor <- function(data_identifier, view, ...) {
 
 # Function to group data into clusters by their means
 group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path, number_clusters, spectral_clustering) {
-  cat("Features will be grouped now.",fill = 1)
+  cat("Features will be grouped now.", fill = 1)
   iter_means <- calculate_means(features, cores)
 
   cluserted_features <- calculate_cluster(iter_means, features, number_clusters, label,
@@ -1550,10 +1550,8 @@ validate_machine_learning_method_exists <- function(config_data, method) {
 }
 
 validate_machine_learning_hyperparamters_exist <- function(config_data, method, hyperparameters) {
-  for (i in seq_along(hyperparameters)) {
-    if (is.null(config_data[[method]][[hyperparameters[i] ]])) {
-      stop_and_help(paste("The config for hyperparameter", hyperparameters[i], "does not exists."), call. = F)
-    }
+  if (all(c(names(config_data[[method]]) %in% hyperparameters), (hyperparameters %in% names(config_data[[method]]))) == F) {
+    stop_and_help(paste("The config for method", method, "is damaged."), call. = F)
   }
 }
 
@@ -1603,35 +1601,45 @@ validate_machine_learning_hyperparamters_randomforest <- function(config_data, f
 
 validate_hyperparameter <- function(method_config_data, hyperparameter, possible_strings = NULL,
                                     possible_null = F, possible_number = F, integer = F, left_interval = NULL,
-                                    right_interval = NULL, possible_vector = NULL, possible_logic = F) {
+                                    right_interval = NULL, possible_vector = F, possible_logic = F) {
   if (is.character(method_config_data[[hyperparameter]])) {
     if ((method_config_data[[hyperparameter]] %in% possible_strings) == F) {
       stop_and_help(paste0("The Hyperparamter ", hyperparameter, " doesnt fit to the character option."))
     }
-  }else if (possible_null == F && is.character(method_config_data[[hyperparameter]]) == F) {
-    if (is.null(method_config_data[[hyperparameter]]) || (method_config_data[[hyperparameter]] == 0 &&
-      (left_interval >= 0 || right_interval < 0))) {
-      stop_and_help(paste0("The Hyperparamter ", hyperparameter, " cant use 0 and null."))
+  }else if (is.null(method_config_data[[hyperparameter]]) || (method_config_data[[hyperparameter]] == 0) &&
+    is.logical(method_config_data[[hyperparameter]])==F) {
+    if (possible_null==F) {
+      stop_and_help(paste("The Hyperparameter", hyperparameter, "can not be a null/0 value."))
     }
-  }else if (possible_number) {
-    if (integer) {
-      validate_hyperparamter_is_integer(method_config_data, hyperparameter)
+  }else if (is.numeric(method_config_data[[hyperparameter]])) {
+    if (possible_number) {
+      if (integer) {
+        validate_hyperparamter_is_integer(method_config_data, hyperparameter)
+      }else {
+        validate_hyperparamter_is_double(method_config_data, hyperparameter)
+      }
+      validate_hyperprameter_interval(method_config_data, hyperparameter, left_interval, right_interval)
     }else {
-      validate_hyperparamter_is_double(method_config_data, hyperparameter)
+      stop_and_help(paste("The Hyperparameter", hyperparameter, "can not be a numeric value."))
     }
-    validate_hyperprameter_interval(method_config_data, hyperparameter, left_interval, right_interval)
-  }else if (possible_vector) {
-    if (is.numeric(method_config_data[[hyperparameter]]) == F || is.vector(method_config_data[[hyperparameter]]) == F) {
-      stop_and_help(paste0("The Hyperparamter ", hyperparameter, " needs to be a numeric vector."))
-    }else if (is.unsorted(rev(method_config_data[[hyperparameter]]))) {
-      stop_and_help(paste0("The Hyperparamter ", hyperparameter, " needs to be inverted sorted."))
-    }else if (method_config_data[[hyperparameter]][[length(method_config_data[[hyperparameter]])]] <= 0) {
-      stop_and_help(paste0("The last Array Hyperparamter ", hyperparameter, " needs to be bigger than zero."))
-    }
-  }else if (possible_logic) {
-    if (is.logical(method_config_data[[hyperparameter]]) == F) {
+  }else if (is.logical(method_config_data[[hyperparameter]])) {
+    if (possible_logic == F) {
       stop_and_help(paste0("The ", hyperparameter, " needs to be TRUE or FALSE."))
     }
+  }else if (is.vector(method_config_data[[hyperparameter]])) {
+    if (possible_vector) {
+      if (is.numeric(method_config_data[[hyperparameter]]) == F || is.vector(method_config_data[[hyperparameter]]) == F) {
+        stop_and_help(paste0("The Hyperparamter ", hyperparameter, " needs to be a numeric vector."))
+      }else if (is.unsorted(rev(method_config_data[[hyperparameter]]))) {
+        stop_and_help(paste0("The Hyperparamter ", hyperparameter, " needs to be inverted sorted."))
+      }else if (method_config_data[[hyperparameter]][[length(method_config_data[[hyperparameter]])]] <= 0) {
+        stop_and_help(paste0("The last Array Hyperparamter ", hyperparameter, " needs to be bigger than zero."))
+      }
+    }else {
+      stop_and_help(paste("The Hyperparameter", hyperparameter, "can not be a vector/array."))
+    }
+  }else {
+    stop_and_help(paste("The Hyperparameter", hyperparameter, "does not fit to the options."))
   }
 }
 
@@ -1695,20 +1703,29 @@ python_machine_learning_dagmm <- function(Input_path, Output_path, data_path,
 
 # Use function with the randomforest, to predict the number of clusters the view is visting
 machine_learning_randomforest <- function(features, view, time_bin, cores,
-                                          path, load_model, model_path, save_model, config_data, number_clusters) {
+                                          path, load_model, model_path, save_model, config_data, number_clusters, spectral_clustering) {
   #Clustert die Daten und gibt die Mittelwertdaten+ die Clusternummer als Label zurück
   means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path, save_model, path, number_clusters, spectral_clustering)
 
+  class_distribution <- table(means_label$Gruppe)
+  weights <- class_distribution / nrow(means_label)
+
+  cluster_of_cores <- makeCluster(cores)
+  registerDoParallel(cluster_of_cores)
+
   if (load_model) {
-    model <- load_randomforest_model(model_path)
+    model <- load_randomforest_model(model_path, means_label)
   }else if (config_data[["dynamic"]] == F) {
-    model <- ranger(
-      formula = Gruppe ~ .,
+    model <- train(
+      as.factor(Gruppe) ~ .,
       data = means_label,
+      method = "ranger",
+      preProcess = "BoxCox",
+      trControl = trainControl(method = "cv", number = 5),
       num.trees = config_data[['num.trees']],
-      mtry = config_data[['mtry']],
-      min.node.size = config_data[['min.node.size']],
+      tuneGrid = expand.grid(mtry = config_data[['mtry']], min.node.size = config_data[['min.node.size']], splitrule = "gini"),
       sample.fraction = config_data[['sample.fraction']],
+      class.weights = weights,
       max.depth = config_data[['max.depth']],
       seed = config_data[['seed']]
     )
@@ -1716,17 +1733,22 @@ machine_learning_randomforest <- function(features, view, time_bin, cores,
     # Grid search hyperparameter
     hyper_grid <- grid_search_randomforest(means_label)
     # Trains the model with the best hyperparameters
-    model <- ranger(
-      formula = Gruppe ~ .,
+    model <- train(
+      as.factor(Gruppe) ~ .,
       data = means_label,
+      method = "ranger",
+      preProcess = "BoxCox",
+      trControl = trainControl(method = "cv", number = 5),
       num.trees = 500,
-      mtry = hyper_grid$mtry[1],
-      min.node.size = hyper_grid$node_size[1],
+      tuneGrid = expand.grid(mtry = hyper_grid$mtry[1], min.node.size = hyper_grid$node_size[1], splitrule = "gini"),
       sample.fraction = hyper_grid$sampe_size[1],
+      class.weights = weights,
       max.depth = hyper_grid$max_deph[1],
       seed = 123
     )
   }
+
+  stopCluster(cluster_of_cores)
 
   if (save_model) {
     saveRDS(model, paste0(path, "model/", "model.rds"))
@@ -1735,13 +1757,13 @@ machine_learning_randomforest <- function(features, view, time_bin, cores,
   # Predict classes on the full data set
   tryCatch(
     expr = {
-      preds <- predict(model, data = features[, colnames(means_label[-ncol(means_label)])], type = "response")
+      preds <- predict(model, newdata = features[, colnames(means_label[-ncol(means_label)])], type = "raw")
     }, error = function(e) {
       stop_and_help("The features of the data should be the same like the model features.", call. = F)
     }
   )
   # ID+Group
-  id_with_associated_group <- data.frame(Identifier = features[, 1], Gruppe = as.factor(preds$predictions))
+  id_with_associated_group <- data.frame(Identifier = features[, 1], Gruppe = as.factor(preds))
 
   # Counts how many groups are visted by the person and sorts it
   result <- id_with_associated_group %>%
@@ -1754,11 +1776,11 @@ machine_learning_randomforest <- function(features, view, time_bin, cores,
 }
 
 #Function to load a saved model
-load_randomforest_model <- function(model_path) {
+load_randomforest_model <- function(model_path, means_label) {
   model <- readRDS(paste0(model_path, "model.rds"))
   tryCatch(
     expr = {
-      model_type <- attr(model$forest, "class")
+      model_type <- attr(model$finalModel$forest, "class")
       if (model_type != "ranger.forest") {
         stop_and_help("Missing the correct model on load with the correct machine learning option.", call. = F)
       }
@@ -1766,7 +1788,7 @@ load_randomforest_model <- function(model_path) {
       stop_and_help("Missing the correct model on load with the correct machine learning option.", call. = F)
     }
   )
-  if (any((model[["forest"]][["independent.variable.names"]] %in% colnames(means_label)) == F)) {
+  if (any((model[["finalModel"]][["forest"]][["independent.variable.names"]] %in% colnames(means_label)) == F)) {
     cat("Your given model contains a feature that is note included in your extracted feature set.", fill = 1)
   }
   return(model)

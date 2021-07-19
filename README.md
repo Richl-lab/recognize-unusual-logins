@@ -38,7 +38,7 @@ This tool is used to find anomalies or suspicious login events.
 ### Built With
 * R & R-Studio
 * Python & Jupyter Notebook/Pycharm
-* Shell Pycharm
+* Shell & Pycharm
 
 ## Getting Started
 

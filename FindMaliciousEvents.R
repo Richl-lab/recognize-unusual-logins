@@ -139,8 +139,10 @@ help_output <- function() {
       "          RF Randomforest - special to rank is the only option",
       "          The config will be loaded automatic, you can configure it to use different machine learning Hyperparameters",
       "-p        Use this to limit your cores to use. The next argument should be the logical count of cores to use, default is cores-1",
-      "-r        The output will be a complet ranked list, default principle is first comes first",
+      "-r        The output will be a complet ranked list, default principle is first comes first. Not used for RF.",
       "          m If you want to get it mean ranked ",
+      "-gc       This argument can be used with Random Forest, it will use the number of group changes to rank,",
+      "          instead of the visited groups.",
       "-s        Save the trained model",
       "-lm       The next argument should be the path to the directory with the trained model information",
       "-n        Plots will not be generated",
@@ -150,7 +152,7 @@ help_output <- function() {
       "-c        Insert a number behind -c to use another number of clusters, default is 13. The number should be higher than 3.",
       "-sc       Using spectral Clustering instead of k-Means",
       "-ro       If the data is readed in parts, this argument with number behind can establish the number of ",
-      "          rows that should be readed per round. The default is 10 Milliom",
+      "          rows that should be readed per round. The default is 10 Million.",
       fill = 40)
 }
 
@@ -214,6 +216,7 @@ parse_arguments <- function(args, envr_args) {
   rank_argsuments <- rank_argument(args, rank = F, mean_rank = F)
   parsed_arguments$rank <- rank_argsuments$rank
   parsed_arguments$mean_rank <- rank_argsuments$mean_rank
+  parsed_arguments$group_changes <- group_changes_argument(args, group_changes = F)
   parsed_arguments$cores <- cores_argument(args, cores = (detectCores() - 1))
   loaded_model <- load_model_argument(args, machine_learning = parsed_arguments$machine_learning, model_path = "", load_model = F)
   parsed_arguments$load_model <- loaded_model$load_model
@@ -372,6 +375,13 @@ rank_argument <- function(args, rank, mean_rank) {
     rank <- T
   }
   return(list(rank = rank, mean_rank = mean_rank))
+}
+
+group_changes_argument <- function(args, group_changes) {
+  if (length(grep("^-gc$", as.character(args))) != 0) {
+    group_changes <- T
+  }
+  return(group_changes)
 }
 
 time_window_argument <- function(args, completely, startdate, enddate) {
@@ -1191,7 +1201,7 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
   # Feature -> first conditions else as Label
   if (label == F) {
     # Group ID and cluster number
-    iterator <- data.frame(Identifier = iter_means[[1]], Gruppe = as.factor(groups[, 1]))
+    iterator <- data.frame(Identifier = iter_means[[1]], Group = as.factor(groups[, 1]))
 
     # Join Features and iterator to add cluster numbers
     features <- left_join(features, iterator, by = "Identifier")
@@ -1200,11 +1210,11 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
     rownames(features) <- uniq_rownames
     features <- features[, -which(names(features) %in% "Identifier")]
     features <- features %>%
-      rename(Identifier = Gruppe)
+      rename(Identifier = Group)
     return(features)
   }else {
     # Use it as Label
-    labeled_mean_data <- data.frame(iter_means[[2]], Gruppe = as.factor(groups[, 1]))
+    labeled_mean_data <- data.frame(iter_means[[2]], Group = as.factor(groups[, 1]))
     return(labeled_mean_data)
   }
 
@@ -1469,7 +1479,8 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
     machine_learning_randomforest(features, parsed_arguments$view, parsed_arguments$time_bin, cores,
                                   path, load_model, model_path, save_model,
                                   config_data = config_data[['randomforest']], parsed_arguments$number_clusters,
-                                  spectral_clustering = parsed_arguments$spectral_clustering)
+                                  spectral_clustering = parsed_arguments$spectral_clustering,
+                                  group_changes = parsed_arguments$group_changes)
   }
 }
 
@@ -1607,8 +1618,8 @@ validate_hyperparameter <- function(method_config_data, hyperparameter, possible
       stop_and_help(paste0("The Hyperparamter ", hyperparameter, " doesnt fit to the character option."))
     }
   }else if (is.null(method_config_data[[hyperparameter]]) || (method_config_data[[hyperparameter]] == 0) &&
-    is.logical(method_config_data[[hyperparameter]])==F) {
-    if (possible_null==F) {
+    is.logical(method_config_data[[hyperparameter]]) == F) {
+    if (possible_null == F) {
       stop_and_help(paste("The Hyperparameter", hyperparameter, "can not be a null/0 value."))
     }
   }else if (is.numeric(method_config_data[[hyperparameter]])) {
@@ -1703,11 +1714,11 @@ python_machine_learning_dagmm <- function(Input_path, Output_path, data_path,
 
 # Use function with the randomforest, to predict the number of clusters the view is visting
 machine_learning_randomforest <- function(features, view, time_bin, cores,
-                                          path, load_model, model_path, save_model, config_data, number_clusters, spectral_clustering) {
+                                          path, load_model, model_path, save_model, config_data, number_clusters, spectral_clustering, group_changes) {
   #Clustert die Daten und gibt die Mittelwertdaten+ die Clusternummer als Label zurück
   means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path, save_model, path, number_clusters, spectral_clustering)
 
-  class_distribution <- table(means_label$Gruppe)
+  class_distribution <- table(means_label$Group)
   weights <- class_distribution / nrow(means_label)
 
   cluster_of_cores <- makeCluster(cores)
@@ -1717,7 +1728,7 @@ machine_learning_randomforest <- function(features, view, time_bin, cores,
     model <- load_randomforest_model(model_path, means_label)
   }else if (config_data[["dynamic"]] == F) {
     model <- train(
-      as.factor(Gruppe) ~ .,
+      as.factor(Group) ~ .,
       data = means_label,
       method = "ranger",
       preProcess = "BoxCox",
@@ -1734,7 +1745,7 @@ machine_learning_randomforest <- function(features, view, time_bin, cores,
     hyper_grid <- grid_search_randomforest(means_label)
     # Trains the model with the best hyperparameters
     model <- train(
-      as.factor(Gruppe) ~ .,
+      as.factor(Group) ~ .,
       data = means_label,
       method = "ranger",
       preProcess = "BoxCox",
@@ -1763,14 +1774,14 @@ machine_learning_randomforest <- function(features, view, time_bin, cores,
     }
   )
   # ID+Group
-  id_with_associated_group <- data.frame(Identifier = features[, 1], Gruppe = as.factor(preds))
+  id_with_associated_group <- data.frame(Identifier = features[, 1], Group = as.factor(preds))
 
-  # Counts how many groups are visted by the person and sorts it
-  result <- id_with_associated_group %>%
-    distinct(Identifier, Gruppe) %>%
-    group_by(Identifier) %>%
-    summarise(n())
-  result <- as.data.frame(result[order(result$`n()`, decreasing = T),])
+  if (group_changes) {
+    result <- count_changed_groups(id_with_associated_group)
+  }else {
+    result <- detect_visited_groups(id_with_associated_group)
+  }
+
   # Write result
   write.csv(result, paste0(path, "results.csv"), row.names = F)
 }
@@ -1807,7 +1818,7 @@ grid_search_randomforest <- function(means_label) {
 
     # Train model
     model <- ranger(
-      formula = Gruppe ~ .,
+      formula = Group ~ .,
       data = train,
       num.trees = 500,
       mtry = hyper_grid$mtry[i],
@@ -1820,7 +1831,7 @@ grid_search_randomforest <- function(means_label) {
     # Add OOB error to grid
     hyper_grid$OOB_RMSE[i] <- sqrt(model$prediction.error)
     preds <- predict(model, data = test, type = "response")
-    conf <- confusionMatrix(preds$predictions, test$Gruppe)
+    conf <- confusionMatrix(preds$predictions, test$Group)
     hyper_grid$pred_test[i] <- as.numeric(conf$overall[1])
   }
 
@@ -1840,6 +1851,39 @@ create_hypergrid_for_gridsearch <- function(cols_means) {
     pred_test = 0
   )
   return(hyper_grid)
+}
+
+count_changed_groups <- function(id_with_associated_group) {
+  iterator <- distinct(id_with_associated_group, Identifier)
+  result <- data.frame(iterator, changed_groups = 0)
+
+  for (i in seq_len(nrow(result))) {
+    data_iterator <- id_with_associated_group[id_with_associated_group$Identifier == result[i, 1],]
+    last_group <- data_iterator$Group[1]
+    changed_groups <- 0
+    if (nrow(data_iterator) >= 2) {
+      for (j in 2:nrow(data_iterator)) {
+        if (data_iterator$Group[j] != last_group) {
+          last_group <- data_iterator$Group[j]
+          changed_groups <- changed_groups + 1
+        }
+      }
+    }
+    result[i, 2] <- changed_groups
+  }
+
+  result <- result[order(result$changed_groups, decreasing = T),]
+  return(result)
+}
+
+detect_visited_groups <- function(id_with_associated_group) {
+  # Counts how many groups are visted by the person and sorts it
+  result <- id_with_associated_group %>%
+    distinct(Identifier, Group) %>%
+    group_by(Identifier) %>%
+    summarise(n())
+  result <- as.data.frame(result[order(result$`n()`, decreasing = T),])
+  return(result)
 }
 
 #############

@@ -4,7 +4,7 @@
 # Module:            Bachelor thesis
 # Theme:             Detect Malicious Login Events
 # Author:            Richard Mey <richard.mey@syss.de>
-# Status:            02.07.2021
+# Status:            20.07.2021
 
 ###########
 # Comment #
@@ -153,7 +153,7 @@ help_output <- function() {
       "-sc       Using spectral Clustering instead of k-Means",
       "-ro       If the data is readed in parts, this argument with number behind can establish the number of ",
       "          rows that should be readed per round. The default is 10 Million.",
-      fill = 40)
+      fill = 42)
 }
 
 stop_and_help <- function(message, call. = F, domain = NULL) {
@@ -543,7 +543,7 @@ number_clusters_argument <- function(args, number_clusters) {
 
 spectral_clustering_argument <- function(args, spectral_clustering) {
   if (length(grep("^-sc$", as.character(args))) != 0) {
-    with_plots <- F
+    spectral_clustering <- T
   }
   return(spectral_clustering)
 }
@@ -1052,9 +1052,9 @@ view_functionset_build <- function(view, feature_extractors, feature_namens) {
   return(list(feature_extractors = feature_extractors, feature_namens = feature_namens))
 }
 
-#############################
-# LIST OF FEATURE FUNCTIONS #
-#############################
+##############################
+# LIST OF FEATURE EXTRACTORS #
+##############################
 
 Identifier_extractor <- function(data_identifier, view, ...) {
   return(data_identifier[1, view])
@@ -1174,7 +1174,8 @@ calculate_means <- function(features, cores) {
 }
 
 # Cluster
-calculate_cluster <- function(iter_means, features, number_clusters, label, load_model, model_path, save_model, path, spectral_clustering) {
+calculate_cluster <- function(iter_means, features, number_clusters, label, load_model, model_path, save_model,
+                              path, spectral_clustering) {
 
   # If a loaded model is used, its also needed to load the old cluster
   if (load_model) {
@@ -1183,7 +1184,13 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
   }else {
     # Seed + cluster data
     if (spectral_clustering) {
-      cluster <- specc(as.matrix(iter_means[[2]]), number_clusters, seed = 123)
+      tryCatch(
+        expr = {
+                cluster <- specc(as.matrix(iter_means[[2]]), number_clusters, seed = 123)
+        }, error = function (e){
+          stop_and_help("Spectral clustering works bad with many Features/Data, choose a smaller cluster number.")
+        }
+      )
       groups <- data.frame(Groups = cluster@.Data)
     }else {
       set.seed(123)
@@ -1220,6 +1227,7 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
 
 }
 
+# If its used for Random Forest (as label) it shouldnt be normalized
 if_needed_normalize_features <- function(cluserted_features, label, load_model, model_path, time_bin) {
   if (label == F) {
     if (load_model) {
@@ -1484,6 +1492,7 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
   }
 }
 
+# If -e is used the data_path needs to be the original from the console and not the new one (inside the path)
 set_data_path_to_features <- function(parsed_arguments) {
   if (parsed_arguments$extracted_features) {
     return(parsed_arguments$data_path)
@@ -1922,6 +1931,7 @@ visualization_results <- function(features, path, not_randomforest, rank, mean_r
   }
 }
 
+# Change margin for plots
 set_plot_margin <- function() {
   par(mar = c(1, 1, 2, 1))
   par(oma = c(0, 0, 0, 0))

@@ -904,7 +904,7 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
     if (nrow(window) > 0) {
       # Extract per view user/sources/hosts without duplicates
       iterator <- distinct(window, window[[view]])
-      # parallelisierung
+      # parallelised
       results <- foreach(j = seq_along(iterator[, 1]), .packages = c("lubridate", "dplyr", "hms", "R.utils"),
                          .combine = rbind) %dopar% {
         # Extract data for this view
@@ -1710,7 +1710,7 @@ python_machine_learning_isolationforest <- function(Input_path, Output_path, dat
 # Use python function with the kNN
 python_machine_learning_kNN <- function(Input_path, Output_path, data_path, cores,
                                         rank, mean_rank, load_model, save_model, model_path, config_data) {
-  source_python(paste0(Input_path, "ml/kNN_Anwendung.py"))
+  source_python(paste0(Input_path, "ml/lscp_Anwendung.py"))
   knn_exec(Output_path, data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 

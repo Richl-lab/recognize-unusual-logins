@@ -1710,7 +1710,7 @@ python_machine_learning_isolationforest <- function(Input_path, Output_path, dat
 # Use python function with the kNN
 python_machine_learning_kNN <- function(Input_path, Output_path, data_path, cores,
                                         rank, mean_rank, load_model, save_model, model_path, config_data) {
-  source_python(paste0(Input_path, "ml/lscp_Anwendung.py"))
+  source_python(paste0(Input_path, "ml/kNN_Anwendung.py"))
   knn_exec(Output_path, data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
 }
 

@@ -79,6 +79,8 @@ The data needs the following structure:
 
 (Default) Users with smaller numbers than 10000 will be removed, because they are interpreted as Well-Known-SIDs. The Software was tested with anonymized Users, Hosts and Sources, so there is no guarantee that it works without that.
 
+Example data can be found [here](https://github.com/Richl-lab/recognize-unusual-logins/tree/main/datasets).
+
 ## Usage
 After usage, the r-script should be executable.
 

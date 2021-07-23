@@ -73,7 +73,8 @@ def transform_categorial_variable(features, rownames):
     return (features)
 
 
-def create_model(comp_hiddens=None, comp_activation="tanh", est_hiddens=[16, 8, 4], est_activation="tanh", est_dropout_ratio=0.25, epoch_size=2500,
+def create_model(comp_hiddens=None, comp_activation="tanh", est_hiddens=[16, 8, 4], est_activation="tanh",
+                 est_dropout_ratio=0.25, epoch_size=2500,
                  minibatch_size=512, random_seed=123):
     model_dagmm = DAGMM(
         comp_hiddens=comp_hiddens,

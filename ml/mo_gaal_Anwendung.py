@@ -44,7 +44,7 @@ def mo_gaal_exec(path, data_path, cores, rank, mean_rank, load_model, save_model
 
 
 def create_model(config_data, cores):
-    model = MO_GAAL(k=10, stop_epochs=200, lr_d=0.01, lr_g=0.0001, decay=1e-06, momentum=0.9, contamination=0.001)
+    model = MO_GAAL(k=10, stop_epochs=20, lr_d=0.01, lr_g=0.0001, decay=1e-06, momentum=0.9, contamination=0.001)
     return model
 
 

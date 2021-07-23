@@ -14,7 +14,7 @@ import Pre_and_post_processing as pp
 
 
 # https://blog.paperspace.com/anomaly-detection-isolation-forest/
-def isolationforest_exec(path,data_path, cores, rank, mean_rank, load_model, save_model, model_path,
+def isolationforest_exec(path, data_path, cores, rank, mean_rank, load_model, save_model, model_path,
                          config_data):
     features = pp.read_features(data_path)
 

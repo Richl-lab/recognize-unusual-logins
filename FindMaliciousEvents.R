@@ -839,8 +839,12 @@ delete_edges <- function(data, optimized_arguments, back, row_multi) {
                                  header = F, col.names = c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type"))
     if (date(data[nrow(data), 3]) == date(next_row_of_data[1, 3]) && time_bin == time_bin_day) {
       edgeless_data <- data[!(date(data$Time) == date(check[1, 3])),]
-      # }else if(((as_datetime(data[nrow(data),3])-hours(time_bin_size+1))>=as_datetime(check[1,3])) && hour(data[nrow(data),3])==hour(check[1,3]) && (time_bin==time_bin_day_and_hour || time_bin==time_bin_hour) && optimized_arguments$time_bin_size>0){
-      #  edgeless_data<-data[!(as_datetime(data$Time>=))]
+    }else if ((as.integer(difftime(next_row_of_data, data[1, 3], units = "hours")) -
+      as.integer(difftime(data[nrow(data), 3], data[1, 3], units = "hours")) <= time_bin_size) &&
+      (time_bin == time_bin_day_and_hour || time_bin == time_bin_hour) &&
+      optimized_arguments$time_bin_size > 0) {
+      edgeless_data <- data[!(data$Time >= (data[1, 3] + hours(as.integer(difftime(data[nrow(data), 3], data[1, 3], units = "hours")) -
+                                                                 as.integer(difftime(data[nrow(data), 3], data[1, 3], units = "hours")) %% (time_bin_size + 1)))),]
     }else if (date(data[nrow(data), 3]) == date(next_row_of_data[1, 3]) &&
       hour(data[nrow(data), 3]) == hour(next_row_of_data[1, 3]) &&
       (time_bin == time_bin_day_and_hour || time_bin == time_bin_hour)) {
@@ -1186,8 +1190,8 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
     if (spectral_clustering) {
       tryCatch(
         expr = {
-                cluster <- specc(as.matrix(iter_means[[2]]), number_clusters, seed = 123)
-        }, error = function (e){
+          cluster <- specc(as.matrix(iter_means[[2]]), number_clusters, seed = 123)
+        }, error = function(e) {
           stop_and_help("Spectral clustering works bad with many Features/Data, choose a smaller cluster number.")
         }
       )

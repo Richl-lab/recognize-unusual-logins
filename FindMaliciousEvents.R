@@ -105,6 +105,8 @@ initalize_global_variables <- function() {
   assign("mean_rank", "m", envir = .GlobalEnv)
   assign("variance_fifo_rank", "v", envir = .GlobalEnv)
 
+  assign("raw_data_types", c("integer", "character", "POSIXct", "numeric", "character", "character", "integer", "integer"),
+         envir = .GlobalEnv)
 
 }
 
@@ -195,7 +197,7 @@ load_libraries <- function() {
 
   # Options
   options(lubridate.week.start = 1) #weekday starts monday
-  options("scipen" = 10) # Not realy needed, shows numbers full printed
+  options("scipen" = 999) # Not realy needed, shows numbers full printed
   Sys.setenv(TZ = 'UTC') # Set System timezone
   pdf(NULL) # GGplot will generate pdf else
 }
@@ -637,7 +639,7 @@ read_in_data <- function(data_path, path) {
     }else {
 
       tryCatch(expr = {
-        data <- read.csv(data_path, colClasses = c("integer", "numeric", "POSIXct", "numeric", "numeric", "numeric", "integer", "integer"), header = F)
+        data <- read.csv(data_path, colClasses = raw_data_types, header = F)
       }, error = function(e) {
         stop_and_help("Missing a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.", call. = F)
       }, warning = function(w) {
@@ -673,7 +675,7 @@ parted_read_in_data <- function(path, row_multi, back, parted_readed_rows) {
   tryCatch(expr = {
     # read in x rows and skip all before
     data_new <- read.csv(paste0(path, time_sorted_filename), nrows = parted_readed_rows, skip = (row_multi * parted_readed_rows) - back,
-                         colClasses = c("integer", "numeric", "POSIXct", "numeric", "numeric", "numeric", "integer", "integer"),
+                         colClasses = raw_data_types,
                          header = F)
     colnames(data_new) <- c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type")
     data_new <- data_new[(data_new$Event_ID == 4624),]
@@ -841,7 +843,7 @@ delete_edges <- function(data, optimized_arguments, back, row_multi) {
   tryCatch(expr = {
     next_row_of_data <- read.csv(paste0(optimized_arguments$path, time_sorted_filename), nrows = 1,
                                  skip = ((row_multi + 1) * optimized_arguments$parted_readed_rows) - back + 1,
-                                 colClasses = c("integer", "numeric", "POSIXct", "numeric", "numeric", "numeric", "integer", "integer"),
+                                 colClasses = raw_data_types,
                                  header = F, col.names = c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type"))
     if (date(data[nrow(data), 3]) == date(next_row_of_data[1, 3]) && time_bin == time_bin_day) {
       edgeless_data <- data[!(date(data$Time) == date(check[1, 3])),]

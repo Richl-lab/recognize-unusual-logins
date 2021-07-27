@@ -15,7 +15,7 @@ sys.path.insert(1, python_script_directory)
 import Pre_and_post_processing as pp
 
 
-def lscp_exec(path, data_path, cores, rank, mean_rank, load_model, save_model, model_path, config_data):
+def lscp_exec(path, data_path, cores, rank, rank_method, load_model, save_model, model_path, config_data):
     features = pp.read_features(data_path)
 
     columns = pp.get_column_names(features)
@@ -42,7 +42,7 @@ def lscp_exec(path, data_path, cores, rank, mean_rank, load_model, save_model, m
     if not rank:
         pp.persist_result(features, path, anomaly_id=1)
     else:
-        pp.persist_rank_result(mean_rank, path, features)
+        pp.persist_rank_result(rank_method, path, features)
 
 
 def create_model(config_data, cores):

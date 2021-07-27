@@ -50,7 +50,7 @@ main <- function(args) {
 
   if (parsed_arguments$with_plots) {
     visualization_results(features, parsed_arguments$path, parsed_arguments$group,
-                          parsed_arguments$rank, parsed_arguments$mean_rank)
+                          parsed_arguments$rank, parsed_arguments$rank_method)
   }
 
   cat("Done.", fill = 1)
@@ -102,6 +102,9 @@ initalize_global_variables <- function() {
 
   assign("read_permission", 4, envir = .GlobalEnv)
 
+  assign("mean_rank", "m", envir = .GlobalEnv)
+  assign("variance_fifo_rank", "v", envir = .GlobalEnv)
+
 
 }
 
@@ -141,6 +144,7 @@ help_output <- function() {
       "-p        Use this to limit your cores to use. The next argument should be the logical count of cores to use, default is cores-1",
       "-r        The output will be a complet ranked list, default principle is first comes first. Not used for RF.",
       "          m If you want to get it mean ranked ",
+      "          v If you want to get it by variance rank of the feature: Hosts per User",
       "-gc       This argument can be used with Random Forest, it will use the number of group changes to rank,",
       "          instead of the visited groups.",
       "-s        Save the trained model",
@@ -153,7 +157,7 @@ help_output <- function() {
       "-sc       Using spectral Clustering instead of k-Means",
       "-ro       If the data is readed in parts, this argument with number behind can establish the number of ",
       "          rows that should be readed per round. The default is 10 Million.",
-      fill = 42)
+      fill = 43)
 }
 
 stop_and_help <- function(message, call. = F, domain = NULL) {
@@ -213,9 +217,9 @@ parse_arguments <- function(args, envr_args) {
   parsed_arguments$startdate <- time_windows$startdate
   parsed_arguments$enddate <- time_windows$enddate
   parsed_arguments$completely <- time_windows$completely
-  rank_argsuments <- rank_argument(args, rank = F, mean_rank = F)
+  rank_argsuments <- rank_argument(args, rank = F, rank_method = NULL)
   parsed_arguments$rank <- rank_argsuments$rank
-  parsed_arguments$mean_rank <- rank_argsuments$mean_rank
+  parsed_arguments$rank_method <- rank_argsuments$rank_method
   parsed_arguments$group_changes <- group_changes_argument(args, group_changes = F)
   parsed_arguments$cores <- cores_argument(args, cores = (detectCores() - 1))
   loaded_model <- load_model_argument(args, machine_learning = parsed_arguments$machine_learning, model_path = "", load_model = F)
@@ -361,20 +365,22 @@ time_bin_argument <- function(args, time_bin, time_bin_size, days_instead) {
   return(list(time_bin = time_bin, time_bin_size = time_bin_size, days_instead = days_instead))
 }
 
-rank_argument <- function(args, rank, mean_rank) {
+rank_argument <- function(args, rank, rank_method) {
 
   if (length(grep("^-r$", as.character(args))) != 0) {
     if (is.na(args[grep("^-r$", as.character(args)) + 1]) != T &&
       length(grep("-", args[grep("^-r$", as.character(args)) + 1])) == F) {
       if (as.character(args[grep("^-r$", as.character(args)) + 1]) == "m") {
-        mean_rank <- T
+        rank_method <- mean_rank
+      }else if (as.character(args[grep("^-r$", as.character(args)) + 1]) == "v") {
+        rank_method <- variance_fifo_rank
       }else {
         stop_and_help("You did not specify any of the valid rank ptions (m).", call. = F)
       }
     }
     rank <- T
   }
-  return(list(rank = rank, mean_rank = mean_rank))
+  return(list(rank = rank, rank_method = rank_method))
 }
 
 group_changes_argument <- function(args, group_changes) {
@@ -1463,7 +1469,7 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
   save_model <- parsed_arguments$save_model
   model_path <- parsed_arguments$model_path
   rank <- parsed_arguments$rank
-  mean_rank <- parsed_arguments$mean_rank
+  rank_method <- parsed_arguments$rank_method
   absolute_path <- parsed_arguments$absolute_path
 
   cat("Machine Learning is processing...")
@@ -1475,13 +1481,13 @@ anomaly_detection <- function(features, parsed_arguments, config_data) {
     tryCatch(expr = {
       switch(machine_learning,
              "IF" = python_machine_learning_isolationforest(absolute_path, path, data_path, cores,
-                                                            rank, mean_rank, load_model, save_model, model_path,
+                                                            rank, rank_method, load_model, save_model, model_path,
                                                             config_data = config_data[['isolationforest']]),
              "kNN" = python_machine_learning_kNN(absolute_path, path, data_path, cores,
-                                                 rank, mean_rank, load_model, save_model, model_path,
+                                                 rank, rank_method, load_model, save_model, model_path,
                                                  config_data = config_data[['k_nearest_neigbhour']]),
              "DAGMM" = python_machine_learning_dagmm(absolute_path, path, data_path,
-                                                     rank, mean_rank, load_model, save_model, model_path,
+                                                     rank, rank_method, load_model, save_model, model_path,
                                                      config_data = config_data[['deep_autoencoding_gaussian_mixture_model']])
       )
     }, error = function(e) {
@@ -1706,23 +1712,23 @@ setup_python <- function(path) {
 
 # Use python function with the isolationforest
 python_machine_learning_isolationforest <- function(Input_path, Output_path, data_path, cores,
-                                                    rank, mean_rank, load_model, save_model, model_path, config_data) {
+                                                    rank, rank_method, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/IsolationForest_Anwendung.py"))
-  isolationforest_exec(Output_path, data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
+  isolationforest_exec(Output_path, data_path, as.integer(cores), rank, rank_method, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the kNN
 python_machine_learning_kNN <- function(Input_path, Output_path, data_path, cores,
-                                        rank, mean_rank, load_model, save_model, model_path, config_data) {
+                                        rank, rank_method, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/kNN_Anwendung.py"))
-  knn_exec(Output_path, data_path, as.integer(cores), rank, mean_rank, load_model, save_model, model_path, config_data)
+  knn_exec(Output_path, data_path, as.integer(cores), rank, rank_method, load_model, save_model, model_path, config_data)
 }
 
 # Use python function with the dagmm
 python_machine_learning_dagmm <- function(Input_path, Output_path, data_path,
-                                          rank, mean_rank, load_model, save_model, model_path, config_data) {
+                                          rank, rank_method, load_model, save_model, model_path, config_data) {
   source_python(paste0(Input_path, "ml/DAGMM_Anwendung.py"))
-  dagmm_exec(Output_path, data_path, rank, mean_rank, load_model, save_model, model_path, config_data)
+  dagmm_exec(Output_path, data_path, rank, rank_method, load_model, save_model, model_path, config_data)
 }
 
 # Use function with the randomforest, to predict the number of clusters the view is visting
@@ -1903,14 +1909,16 @@ detect_visited_groups <- function(id_with_associated_group) {
 # Visualize #
 #############
 
-visualization_results <- function(features, path, not_randomforest, rank, mean_rank) {
+visualization_results <- function(features, path, not_randomforest, rank, rank_method) {
 
   results <- read.csv(paste0(path, "results.csv"))
 
   if (is.na(results[1, 1]) == F) {
     if ("hour" %in% colnames(features)) {
       features["hour"] <- as.numeric(seconds(as_hms(sapply(features["hour"], as.character))))
-      results["hour"] <- as.numeric(seconds(as_hms(sapply(results["hour"], as.character))))
+      if (rank_method == mean_rank) {
+        results["hour"] <- as.numeric(seconds(as_hms(sapply(results["hour"], as.character))))
+      }
     }
 
     identifier <- data.frame(Identifier = sub("^X", "", sub("\\.[0-9]*$", "", results[, 1])))
@@ -1927,7 +1935,7 @@ visualization_results <- function(features, path, not_randomforest, rank, mean_r
     palette_outsider <- colorRampPalette(c("red", "purple"))
     set_plot_margin()
     for (i in seq_len(nrow(iterator))) {
-      create_plot(results, features, iterator, i, not_randomforest, palette_outsider, palette, path, mean_rank)
+      create_plot(results, features, iterator, i, not_randomforest, palette_outsider, palette, path, rank_method)
     }
     delete_empty_directory(path)
   }else {
@@ -1941,10 +1949,10 @@ set_plot_margin <- function() {
   par(oma = c(0, 0, 0, 0))
 }
 
-create_plot <- function(results, features, iterator, i, not_randomforest, palette_outsider, palette, path, mean_rank) {
+create_plot <- function(results, features, iterator, i, not_randomforest, palette_outsider, palette, path, rank_method) {
   tryCatch(
     expr = {
-      extracted_insider_and_outsider <- extract_insider_and_outsider(not_randomforest, mean_rank, iterator[i, 1],
+      extracted_insider_and_outsider <- extract_insider_and_outsider(not_randomforest, rank_method, iterator[i, 1],
                                                                      results, features)
       outsider <- extracted_insider_and_outsider$outsider
       insider <- extracted_insider_and_outsider$insider
@@ -1956,7 +1964,7 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
 
       if (not_randomforest) {
         not_included <- c("Identifier", "day")
-        if (mean_rank) {
+        if (rank_method == mean_rank) {
           colors <- palette(length(colors))
           plot_data <- select(features[insider,], !one_of(not_included))
         }else {
@@ -1985,9 +1993,9 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
   )
 }
 
-extract_insider_and_outsider <- function(not_randomforest, mean_rank, iterator, results, features) {
+extract_insider_and_outsider <- function(not_randomforest, rank_method, iterator, results, features) {
   if (not_randomforest) {
-    if (mean_rank) {
+    if (rank_method == mean_rank) {
       outsider <- ""
     }else {
       outsider <- grep(paste0("^X", iterator, "(\\.[0-9]+$){0,1}"), results[, 1], value = T)

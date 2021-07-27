@@ -17,7 +17,7 @@ import Pre_and_post_processing as pp
 
 
 # https://github.com/tnakae/DAGMM/blob/master/Example_DAGMM.ipynb
-def dagmm_exec(path,data_path, rank, mean_rank, load_model, save_model, model_path, config_data):
+def dagmm_exec(path, data_path, rank, rank_method, load_model, save_model, model_path, config_data):
     features = pp.read_features(data_path)
 
     rownames = get_rownames(features)
@@ -57,7 +57,7 @@ def dagmm_exec(path,data_path, rank, mean_rank, load_model, save_model, model_pa
     if not rank:
         persist_result(features, score, path)
     else:
-        pp.persist_rank_result(mean_rank, path, features)
+        pp.persist_rank_result(rank_method, path, features)
 
 
 def get_rownames(features):

@@ -88,9 +88,11 @@ def persist_result(features, path, anomaly_id):
     features.loc[features['anomaly'] == anomaly_id].to_csv(path + 'results.csv')
 
 
-def persist_rank_result(mean_rank, path, features):
-    if mean_rank:
+def persist_rank_result(rank_method, path, features):
+    if rank_method == "m":
         res = rank_mean(features)
+    elif rank_method == "v":
+        res = rank_with_var(features)
     else:
         res = rank_first(features)
     res.to_csv(path + 'results.csv')
@@ -128,3 +130,25 @@ def rank_mean(features: pd.DataFrame):
 
     res = pd.DataFrame({"mean_score": means}, index=rownames)
     return res
+
+
+def rank_with_var(features: pd.DataFrame):
+    pd.options.mode.chained_assignment = None
+    new_names = extract_index(features)
+    rownames = list(set(new_names))
+    features['scores'] = (features['scores'] - features['scores'].min()) / (
+            features['scores'].max() - features['scores'].min())
+    features_without_scores = features.drop(['scores', 'anomaly', 'Identifier'], axis=1, errors='ignore')
+    users_with_vars = pd.DataFrame(columns=features_without_scores.columns)
+
+    for i in range(len(rownames)):
+        rows = np.where(np.array(new_names) == rownames[i])
+        features_per_view = features_without_scores.iloc[rows]
+        var_per_view = features_per_view.var()
+        users_with_vars.loc[rownames[i]] = var_per_view
+        features['scores'].iloc[rows] = features['scores'].iloc[rows] * users_with_vars['Hosts_per_User'].loc[
+            rownames[i]]
+
+    sorted_features = features.sort_values(by=['scores'], ascending=False)
+    first_ranked_features = rank_first(sorted_features)
+    return first_ranked_features

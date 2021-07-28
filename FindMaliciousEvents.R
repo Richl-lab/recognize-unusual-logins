@@ -2,9 +2,9 @@
 #https://www.r-bloggers.com/2019/11/r-scripts-as-command-line-tools/
 
 # Module:            Bachelor thesis
-# Theme:             Detect Malicious Login Events
+# Theme:             Detect malicious/unusual Login Events
 # Author:            Richard Mey <richard.mey@syss.de>
-# Status:            20.07.2021
+# Status:            28.07.2021
 
 ###########
 # Comment #
@@ -107,6 +107,14 @@ initalize_global_variables <- function() {
 
   assign("raw_data_types", c("integer", "character", "POSIXct", "numeric", "character", "character", "integer", "integer"),
          envir = .GlobalEnv)
+  assign("raw_data_col_names", c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type"),
+         envir = .GlobalEnv)
+
+  assign("feature_name_id", "Identifier", envir = .GlobalEnv)
+  assign("feature_name_day", "day", envir = .GlobalEnv)
+  assign("feature_name_weekday", "weekday", envir = .GlobalEnv)
+  assign("feature_name_hour", "hour", envir = .GlobalEnv)
+
 
 }
 
@@ -146,7 +154,7 @@ help_output <- function() {
       "-p        Use this to limit your cores to use. The next argument should be the logical count of cores to use, default is cores-1",
       "-r        The output will be a complet ranked list, default principle is first comes first. Not used for RF.",
       "          m If you want to get it mean ranked ",
-      "          v If you want to get it by variance rank of the feature: Hosts per User",
+      "          v If you want to get it by variance rank of the feature: Hosts per User. Only usable with the user view.",
       "-gc       This argument can be used with Random Forest, it will use the number of group changes to rank,",
       "          instead of the visited groups.",
       "-s        Save the trained model",
@@ -219,7 +227,7 @@ parse_arguments <- function(args, envr_args) {
   parsed_arguments$startdate <- time_windows$startdate
   parsed_arguments$enddate <- time_windows$enddate
   parsed_arguments$completely <- time_windows$completely
-  rank_argsuments <- rank_argument(args, rank = F, rank_method = NULL)
+  rank_argsuments <- rank_argument(args, rank = F, rank_method = NULL, parsed_arguments$view_argument)
   parsed_arguments$rank <- rank_argsuments$rank
   parsed_arguments$rank_method <- rank_argsuments$rank_method
   parsed_arguments$group_changes <- group_changes_argument(args, group_changes = F)
@@ -367,7 +375,7 @@ time_bin_argument <- function(args, time_bin, time_bin_size, days_instead) {
   return(list(time_bin = time_bin, time_bin_size = time_bin_size, days_instead = days_instead))
 }
 
-rank_argument <- function(args, rank, rank_method) {
+rank_argument <- function(args, rank, rank_method, view) {
 
   if (length(grep("^-r$", as.character(args))) != 0) {
     if (is.na(args[grep("^-r$", as.character(args)) + 1]) != T &&
@@ -376,6 +384,9 @@ rank_argument <- function(args, rank, rank_method) {
         rank_method <- mean_rank
       }else if (as.character(args[grep("^-r$", as.character(args)) + 1]) == "v") {
         rank_method <- variance_fifo_rank
+        if (view != view_user) {
+          stop_and_help("This ranking method is just working with user view.")
+        }
       }else {
         stop_and_help("You did not specify any of the valid rank ptions (m).", call. = F)
       }
@@ -652,7 +663,7 @@ read_in_data <- function(data_path, path) {
       }
 
       # Rename columns and delet all Events that dont fit to 4624
-      colnames(data) <- c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type") #ActivityID oder LogonGUID
+      colnames(data) <- raw_data_col_names #ActivityID oder LogonGUID
       data <- data[(data$Event_ID == 4624),]
       return(data)
     }
@@ -677,7 +688,7 @@ parted_read_in_data <- function(path, row_multi, back, parted_readed_rows) {
     data_new <- read.csv(paste0(path, time_sorted_filename), nrows = parted_readed_rows, skip = (row_multi * parted_readed_rows) - back,
                          colClasses = raw_data_types,
                          header = F)
-    colnames(data_new) <- c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type")
+    colnames(data_new) <- raw_data_col_names
     data_new <- data_new[(data_new$Event_ID == 4624),]
     return(data_new)
   }, error = function(e) {
@@ -708,6 +719,7 @@ extract_features <- function(data, parsed_arguments) {
 
   if (parsed_arguments$statistics) {
     data_statistics(data, parsed_arguments, "post")
+    ask_for_stop()
   }
 
   if (nrow(data[(data$Time >= (as.Date(parsed_arguments$startdate)) &
@@ -726,7 +738,7 @@ set_start_and_enddate <- function(data, parsed_arguments) {
   if (is.null(parsed_arguments$startdate)) {
     if (parsed_arguments$completely) {
       startdate <- as_date(min(data$Time))
-      enddate <- as_date(max(data$Time))
+      enddate <- as_date(max(data$Time)) + days(1)
     }else {
       calculated_start_and_enddate <- calculate_start_and_enddate(generate_timeline_month(data))
       startdate <- calculated_start_and_enddate[[1]]
@@ -737,6 +749,14 @@ set_start_and_enddate <- function(data, parsed_arguments) {
     enddate <- parsed_arguments$enddate
   }
   return(list(startdate = startdate, enddate = enddate))
+}
+
+ask_for_stop <- function() {
+  cat("Data statistics are done, you would like to break now? Then type in: Yes/Y: ")
+  stop_answer <- as.character(readLines("stdin", n = 1))
+  if (length(grep("^(Yes|YES|Y)$", stop_answer)) == 1) {
+    quit()
+  }
 }
 
 
@@ -844,7 +864,7 @@ delete_edges <- function(data, optimized_arguments, back, row_multi) {
     next_row_of_data <- read.csv(paste0(optimized_arguments$path, time_sorted_filename), nrows = 1,
                                  skip = ((row_multi + 1) * optimized_arguments$parted_readed_rows) - back + 1,
                                  colClasses = raw_data_types,
-                                 header = F, col.names = c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type"))
+                                 header = F, col.names = raw_data_col_names)
     if (date(data[nrow(data), 3]) == date(next_row_of_data[1, 3]) && time_bin == time_bin_day) {
       edgeless_data <- data[!(date(data$Time) == date(check[1, 3])),]
     }else if ((as.integer(difftime(next_row_of_data, data[1, 3], units = "hours")) -
@@ -974,7 +994,7 @@ build_functionset_extraction <- function(parsed_arguments) {
 
   # ID will always be used
   feature_extractors <- append(feature_extractors, Identifier_extractor)
-  feature_namens <- append(feature_namens, "Identifier")
+  feature_namens <- append(feature_namens, feature_name_id)
 
   # Time Features
   time_bin_functions <- time_bin_functionset_build(parsed_arguments$time_bin, parsed_arguments$days_instead,
@@ -1020,22 +1040,22 @@ time_bin_functionset_build <- function(time_bin, days_instead, feature_extractor
          "d" = {
            if (days_instead) {
              feature_extractors <- append(feature_extractors, day_feature_2)
-             feature_namens <- append(feature_namens, "day")
+             feature_namens <- append(feature_namens, feature_name_day)
            }else {
              feature_extractors <- append(feature_extractors, weekday_extractor)
-             feature_namens <- append(feature_namens, "weekday")
+             feature_namens <- append(feature_namens, feature_name_weekday)
            }
            time_window <- days
          },
          "h" = {
            feature_extractors <- append(feature_extractors, hour_extractor)
-           feature_namens <- append(feature_namens, "hour")
+           feature_namens <- append(feature_namens, feature_name_hour)
            time_window <- hours
          },
          "dh" = {
            feature_extractors <- append(feature_extractors, day_extractor)
            feature_extractors <- append(feature_extractors, hour_extractor)
-           feature_namens <- append(feature_namens, c("day", "hour"))
+           feature_namens <- append(feature_namens, c(feature_name_day, feature_name_hour))
            time_window <- hours
          }
   )
@@ -1158,7 +1178,7 @@ calculate_means <- function(features, cores) {
   options(warn = -1)
   # Ignore Feature like time
   tryCatch(expr = {
-    features_without_factors <- select(features, !one_of(c("Identifier", "day", "weekday", "hour")))
+    features_without_factors <- select(features, !one_of(c(feature_name_id, feature_name_day, feature_name_weekday, feature_name_hour)))
   })
 
   # IDs
@@ -1223,11 +1243,11 @@ calculate_cluster <- function(iter_means, features, number_clusters, label, load
     iterator <- data.frame(Identifier = iter_means[[1]], Group = as.factor(groups[, 1]))
 
     # Join Features and iterator to add cluster numbers
-    features <- left_join(features, iterator, by = "Identifier")
+    features <- left_join(features, iterator, by = feature_name_id)
     # Construct unique IDs
     uniq_rownames <- make.names(features[, 1], unique = T)
     rownames(features) <- uniq_rownames
-    features <- features[, -which(names(features) %in% "Identifier")]
+    features <- features[, -which(names(features) %in% feature_name_id)]
     features <- features %>%
       rename(Identifier = Group)
     return(features)
@@ -1913,13 +1933,15 @@ detect_visited_groups <- function(id_with_associated_group) {
 
 visualization_results <- function(features, path, not_randomforest, rank, rank_method) {
 
+  # Ignore warnings
+  options(warn = -1)
   results <- read.csv(paste0(path, "results.csv"))
 
   if (is.na(results[1, 1]) == F) {
-    if ("hour" %in% colnames(features)) {
-      features["hour"] <- as.numeric(seconds(as_hms(sapply(features["hour"], as.character))))
-      if (rank_method == mean_rank) {
-        results["hour"] <- as.numeric(seconds(as_hms(sapply(results["hour"], as.character))))
+    if (feature_name_hour %in% colnames(features)) {
+      features[feature_name_hour] <- as.numeric(seconds(as_hms(sapply(features[feature_name_hour], as.character))))
+      if (length(rank_method == mean_rank) == 1) {
+        results[feature_name_hour] <- as.numeric(seconds(as_hms(sapply(results[feature_name_hour], as.character))))
       }
     }
 
@@ -1965,8 +1987,8 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
       }
 
       if (not_randomforest) {
-        not_included <- c("Identifier", "day")
-        if (rank_method == mean_rank) {
+        not_included <- c(feature_name_id, feature_name_day)
+        if (length(rank_method == mean_rank) == 1) {
           colors <- palette(length(colors))
           plot_data <- select(features[insider,], !one_of(not_included))
         }else {
@@ -1997,7 +2019,7 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
 
 extract_insider_and_outsider <- function(not_randomforest, rank_method, iterator, results, features) {
   if (not_randomforest) {
-    if (rank_method == mean_rank) {
+    if (length(rank_method == mean_rank) == 1) {
       outsider <- ""
     }else {
       outsider <- grep(paste0("^X", iterator, "(\\.[0-9]+$){0,1}"), results[, 1], value = T)

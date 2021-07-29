@@ -105,7 +105,7 @@ initalize_global_variables <- function() {
   assign("mean_rank", "m", envir = .GlobalEnv)
   assign("variance_fifo_rank", "v", envir = .GlobalEnv)
 
-  assign("raw_data_types", c("integer", "character", "POSIXct", "numeric", "character", "character", "integer", "integer"),
+  assign("raw_data_types", c("integer", "character", "character", "numeric", "character", "character", "integer", "integer"),
          envir = .GlobalEnv)
   assign("raw_data_col_names", c("Event_ID", "Host", "Time", "Logon_ID", "User", "Source", "Source_Port", "Logon_Type"),
          envir = .GlobalEnv)
@@ -682,6 +682,7 @@ read_in_data <- function(data_path, path) {
       # Rename columns and delet all Events that dont fit to 4624
       colnames(data) <- raw_data_col_names #ActivityID oder LogonGUID
       data <- data[(data$Event_ID == 4624),]
+      data$Time<-convert_to_datetime(data$Time)
       return(data)
     }
 
@@ -689,6 +690,11 @@ read_in_data <- function(data_path, path) {
     stop_and_help("The specified file needs to match with one of the acceptable file formats (csv).", call. = F)
   }
 
+}
+
+convert_to_datetime<-function (datetime_as_char){
+  datetime<-as_datetime(datetime_as_char)
+  return(datetime)
 }
 
 get_free_memory <- function() {
@@ -706,6 +712,7 @@ parted_read_in_data <- function(path, row_multi, back, parted_readed_rows) {
                         colClasses = raw_data_types,
                         header = F)
     colnames(data_new) <- raw_data_col_names
+    data_new$Time<-convert_to_datetime(data_new$Time)
     data_new <- data_new[(data_new$Event_ID == 4624),]
     return(data_new)
   }, error = function(e) {
@@ -882,6 +889,7 @@ delete_edges <- function(data, optimized_arguments, back, row_multi) {
                                 skip = ((row_multi + 1) * optimized_arguments$parted_readed_rows) - back + 1,
                                 colClasses = raw_data_types,
                                 header = F, col.names = raw_data_col_names)
+    next_row_of_data$Time<-convert_to_datetime(next_row_of_data$Time)
     if (date(data[nrow(data), 3]) == date(next_row_of_data[1, 3]) && time_bin == time_bin_day) {
       edgeless_data <- data[!(date(data$Time) == date(check[1, 3])),]
     }else if ((as.integer(difftime(next_row_of_data, data[1, 3], units = "hours")) -

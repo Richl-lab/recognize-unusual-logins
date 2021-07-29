@@ -115,7 +115,7 @@ initalize_global_variables <- function() {
   assign("feature_name_weekday", "weekday", envir = .GlobalEnv)
   assign("feature_name_hour", "hour", envir = .GlobalEnv)
 
-
+  assign("read_file_ext", "csv", envir = .GlobalEnv)
 }
 
 #################
@@ -607,12 +607,12 @@ extract_features_from_file <- function(parsed_arguments) {
 
 # If the option -e has been choosen, Features which has been created with this program can be loaded
 read_in_features_from_file <- function(data_path) {
-  if (file_ext(data_path) == "csv") {
+  if (file_ext(data_path) == read_file_ext) {
     if (file.access(data_path, read_permission) == -1) {
       stop_and_help("Missing a file for which you got the rights to read.", call. = F)
     }
     tryCatch(expr = {
-      features <- read.csv(data_path, row.names = 1)
+      features <- read_in(data_path, row.names = 1)
       possible_features <- "weekday|number_events|proportion_[0-9_]+|hour|day|events_per_second|Identifier|Users_per_Host|Users_per_Source|Hosts_per_User|Hosts_per_Source|Sources_per_User|Sources_per_Host"
       if (length(grep(possible_features, colnames(features), invert = T)) != 0) {
         stop_and_help("The inserted Feature set, does not match the feature the programs generate.", call. = F)
@@ -628,13 +628,30 @@ read_in_features_from_file <- function(data_path) {
   }
 }
 
+read_in <- function(path, row.names = NULL, header = T, nrows = -1, colClasses = NA, skip = 0, col.names = NULL) {
+  if (is.null(col.names) == T) {
+    data <- read.csv(path, row.names = row.names, header = header, nrows = nrows, colClasses = colClasses, skip = skip)
+  }else {
+    data <- read.csv(path, row.names = row.names, header = header, nrows = nrows, colClasses = colClasses, skip = skip, col.names = col.names)
+  }
+  return(data)
+}
+
+write_out <- function(data, path, row.names = T, col.names = T) {
+  if (file_ext(path) == "csv") {
+    write.csv(data, path, row.names = row.names)
+  }else {
+    write.table(data, path, row.names = row.names, col.names = col.names)
+  }
+}
+
 read_in_data <- function(data_path, path) {
   # R loads all data in the memory, so if the raw data it cant read all without crashing, thats why it can be splited read in
   memory <- get_free_memory()
 
   file_size <- as.numeric(file.info(data_path)$size) / 1000000
 
-  if (file_ext(data_path) == "csv") {
+  if (file_ext(data_path) == read_file_ext) {
     if (file.access(data_path, read_permission) == -1) {
       stop_and_help("Missing a file for which you got the rights to read.", call. = F)
     }
@@ -650,7 +667,7 @@ read_in_data <- function(data_path, path) {
     }else {
 
       tryCatch(expr = {
-        data <- read.csv(data_path, colClasses = raw_data_types, header = F)
+        data <- read_in(data_path, colClasses = raw_data_types, header = F)
       }, error = function(e) {
         stop_and_help("Missing a valid, non-empty file and in accordance with the format: Int,Num,Date,Num,Num,Num,Int,Int.", call. = F)
       }, warning = function(w) {
@@ -685,9 +702,9 @@ get_free_memory <- function() {
 parted_read_in_data <- function(path, row_multi, back, parted_readed_rows) {
   tryCatch(expr = {
     # read in x rows and skip all before
-    data_new <- read.csv(paste0(path, time_sorted_filename), nrows = parted_readed_rows, skip = (row_multi * parted_readed_rows) - back,
-                         colClasses = raw_data_types,
-                         header = F)
+    data_new <- read_in(paste0(path, time_sorted_filename), nrows = parted_readed_rows, skip = (row_multi * parted_readed_rows) - back,
+                        colClasses = raw_data_types,
+                        header = F)
     colnames(data_new) <- raw_data_col_names
     data_new <- data_new[(data_new$Event_ID == 4624),]
     return(data_new)
@@ -728,7 +745,7 @@ extract_features <- function(data, parsed_arguments) {
   }
 
   features <- feature_extraction(data, parsed_arguments)
-  write.csv(features, paste0(parsed_arguments$path, "Features.csv"))
+  write_out(features, paste0(parsed_arguments$path, "Features.csv"))
 
   return(features)
 }
@@ -800,7 +817,7 @@ feature_extraction_parted_from_file <- function(parsed_arguments) {
                                        save_model = parsed_arguments$save_model, path = parsed_arguments$path,
                                        number_clusters = parsed_arguments$number_clusters, spectral_clustering = parsed_arguments$spectral_clustering)
   }
-  write.csv(grouped_features, paste0(parsed_arguments$path, "Features.csv"))
+  write_out(grouped_features, paste0(parsed_arguments$path, "Features.csv"))
 
   return(grouped_features)
 }
@@ -861,10 +878,10 @@ delete_edges <- function(data, optimized_arguments, back, row_multi) {
   time_bin_size <- optimized_arguments$time_bin_size
 
   tryCatch(expr = {
-    next_row_of_data <- read.csv(paste0(optimized_arguments$path, time_sorted_filename), nrows = 1,
-                                 skip = ((row_multi + 1) * optimized_arguments$parted_readed_rows) - back + 1,
-                                 colClasses = raw_data_types,
-                                 header = F, col.names = raw_data_col_names)
+    next_row_of_data <- read_in(paste0(optimized_arguments$path, time_sorted_filename), nrows = 1,
+                                skip = ((row_multi + 1) * optimized_arguments$parted_readed_rows) - back + 1,
+                                colClasses = raw_data_types,
+                                header = F, col.names = raw_data_col_names)
     if (date(data[nrow(data), 3]) == date(next_row_of_data[1, 3]) && time_bin == time_bin_day) {
       edgeless_data <- data[!(date(data$Time) == date(check[1, 3])),]
     }else if ((as.integer(difftime(next_row_of_data, data[1, 3], units = "hours")) -
@@ -1373,7 +1390,7 @@ write_general_infos <- function(data, path) {
                                                     summarise(n())))
   infos[5] <- paste("Smallest date of the data:", min(data$Time))
   infos[6] <- paste("Newest date:", max(data$Time))
-  write.table(infos, file = paste0(path, "general_infos.txt"), row.names = F, col.names = F)
+  write_out(infos, paste0(path, "general_infos.txt"), row.names = F, col.names = F)
 }
 
 generate_timeline_month <- function(data) {
@@ -1453,7 +1470,7 @@ write_users_with_most_logon_proportion <- function(data, path) {
     }
     logons <- append(logons, "")
   }
-  write.table(logons, file = paste0(path, "Users_with_most_logon_types.txt"), row.names = F, col.names = F)
+  write_out(logons, paste0(path, "Users_with_most_logon_types.txt"), row.names = F, col.names = F)
 }
 
 #----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1824,7 +1841,7 @@ machine_learning_randomforest <- function(features, view, time_bin, cores,
   }
 
   # Write result
-  write.csv(result, paste0(path, "results.csv"), row.names = F)
+  write_out(result, paste0(path, "results.csv"), row.names = F)
 }
 
 #Function to load a saved model
@@ -1935,12 +1952,12 @@ visualization_results <- function(features, path, not_randomforest, rank, rank_m
 
   # Ignore warnings
   options(warn = -1)
-  results <- read.csv(paste0(path, "results.csv"))
+  results <- read_in(paste0(path, "results.csv"))
 
   if (is.na(results[1, 1]) == F) {
     if (feature_name_hour %in% colnames(features)) {
       features[feature_name_hour] <- as.numeric(seconds(as_hms(sapply(features[feature_name_hour], as.character))))
-      if (length(rank_method == mean_rank) == 1) {
+      if (length(grep(mean_rank, rank_method))==1) {
         results[feature_name_hour] <- as.numeric(seconds(as_hms(sapply(results[feature_name_hour], as.character))))
       }
     }
@@ -1988,7 +2005,7 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
 
       if (not_randomforest) {
         not_included <- c(feature_name_id, feature_name_day)
-        if (length(rank_method == mean_rank) == 1) {
+        if (length(grep(mean_rank, rank_method))==1) {
           colors <- palette(length(colors))
           plot_data <- select(features[insider,], !one_of(not_included))
         }else {
@@ -2019,7 +2036,7 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
 
 extract_insider_and_outsider <- function(not_randomforest, rank_method, iterator, results, features) {
   if (not_randomforest) {
-    if (length(rank_method == mean_rank) == 1) {
+    if (length(grep(mean_rank, rank_method))==1) {
       outsider <- ""
     }else {
       outsider <- grep(paste0("^X", iterator, "(\\.[0-9]+$){0,1}"), results[, 1], value = T)

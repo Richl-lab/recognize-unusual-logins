@@ -227,7 +227,7 @@ parse_arguments <- function(args, envr_args) {
   parsed_arguments$startdate <- time_windows$startdate
   parsed_arguments$enddate <- time_windows$enddate
   parsed_arguments$completely <- time_windows$completely
-  rank_argsuments <- rank_argument(args, rank = F, rank_method = NULL, parsed_arguments$view_argument)
+  rank_argsuments <- rank_argument(args, rank = F, rank_method = NULL, parsed_arguments$view)
   parsed_arguments$rank <- rank_argsuments$rank
   parsed_arguments$rank_method <- rank_argsuments$rank_method
   parsed_arguments$group_changes <- group_changes_argument(args, group_changes = F)

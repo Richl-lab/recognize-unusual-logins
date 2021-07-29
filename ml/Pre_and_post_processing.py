@@ -141,6 +141,15 @@ def rank_with_var(features: pd.DataFrame):
     features_without_scores = features.drop(['scores', 'anomaly', 'Identifier'], axis=1, errors='ignore')
     users_with_vars = pd.DataFrame(columns=features_without_scores.columns)
 
+    features_manipulated_score = calc_var_and_new_score_per_user(new_names, rownames,
+                                                                 features_without_scores, users_with_vars, features)
+
+    sorted_features = features_manipulated_score.sort_values(by=['scores'], ascending=False)
+    first_ranked_features = rank_first(sorted_features)
+    return first_ranked_features
+
+
+def calc_var_and_new_score_per_user(new_names, rownames, features_without_scores, users_with_vars, features):
     for i in range(len(rownames)):
         rows = np.where(np.array(new_names) == rownames[i])
         features_per_view = features_without_scores.iloc[rows]
@@ -149,6 +158,4 @@ def rank_with_var(features: pd.DataFrame):
         features['scores'].iloc[rows] = features['scores'].iloc[rows] * users_with_vars['Hosts_per_User'].loc[
             rownames[i]]
 
-    sorted_features = features.sort_values(by=['scores'], ascending=False)
-    first_ranked_features = rank_first(sorted_features)
-    return first_ranked_features
+    return features

@@ -822,7 +822,8 @@ feature_extraction_parted_from_file <- function(parsed_arguments) {
                                        load_model = parsed_arguments$load_model,
                                        model_path = parsed_arguments$model_path,
                                        save_model = parsed_arguments$save_model, path = parsed_arguments$path,
-                                       number_clusters = parsed_arguments$number_clusters, spectral_clustering = parsed_arguments$spectral_clustering)
+                                       number_clusters = parsed_arguments$number_clusters,
+                                       spectral_clustering = parsed_arguments$spectral_clustering)
   }
   write_out(grouped_features, paste0(parsed_arguments$path, "Features.csv"))
 
@@ -897,7 +898,8 @@ delete_edges <- function(data, optimized_arguments, back, row_multi) {
       (time_bin == time_bin_day_and_hour || time_bin == time_bin_hour) &&
       optimized_arguments$time_bin_size > 0) {
       edgeless_data <- data[!(data$Time >= (data[1, 3] + hours(as.integer(difftime(data[nrow(data), 3], data[1, 3], units = "hours")) -
-                                                                 as.integer(difftime(data[nrow(data), 3], data[1, 3], units = "hours")) %% (time_bin_size + 1)))),]
+                                                                 as.integer(difftime(data[nrow(data), 3], data[1, 3], units = "hours"))
+                                                                   %% (time_bin_size + 1)))),]
     }else if (date(data[nrow(data), 3]) == date(next_row_of_data[1, 3]) &&
       hour(data[nrow(data), 3]) == hour(next_row_of_data[1, 3]) &&
       (time_bin == time_bin_day_and_hour || time_bin == time_bin_hour)) {
@@ -995,7 +997,8 @@ feature_extraction <- function(data, parsed_arguments, split = F) {
 
   # If its splitted it needs to be done later on the complet feature set
   if (split != T && parsed_arguments$group == T) {
-    features <- group_features(features, time_bin = parsed_arguments$time_bin, cores, load_model = parsed_arguments$load_model,
+    features <- group_features(features, time_bin = parsed_arguments$time_bin, cores,
+                               load_model = parsed_arguments$load_model,
                                model_path = parsed_arguments$model_path, save_model = parsed_arguments$save_model,
                                path = parsed_arguments$path, number_clusters = parsed_arguments$number_clusters,
                                spectral_clustering = parsed_arguments$spectral_clustering)
@@ -1178,7 +1181,8 @@ Users_per_X_extractor <- function(data_identifier, view, ...) {
 ##############
 
 # Function to group data into clusters by their means
-group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path, number_clusters, spectral_clustering) {
+group_features <- function(features, time_bin, cores, label = F, load_model, model_path, save_model, path,
+                           number_clusters, spectral_clustering) {
   cat("Features will be grouped now.", fill = 1)
   iter_means <- calculate_means(features, cores)
 
@@ -1203,7 +1207,8 @@ calculate_means <- function(features, cores) {
   options(warn = -1)
   # Ignore Feature like time
   tryCatch(expr = {
-    features_without_factors <- select(features, !one_of(c(feature_name_id, feature_name_day, feature_name_weekday, feature_name_hour)))
+    features_without_factors <- select(features,
+                                       !one_of(c(feature_name_id, feature_name_day, feature_name_weekday, feature_name_hour)))
   })
 
   # IDs
@@ -1780,9 +1785,11 @@ python_machine_learning_dagmm <- function(Input_path, Output_path, data_path,
 
 # Use function with the randomforest, to predict the number of clusters the view is visting
 machine_learning_randomforest <- function(features, view, time_bin, cores,
-                                          path, load_model, model_path, save_model, config_data, number_clusters, spectral_clustering, group_changes) {
+                                          path, load_model, model_path, save_model, config_data,
+                                          number_clusters, spectral_clustering, group_changes) {
   #Clustert die Daten und gibt die Mittelwertdaten+ die Clusternummer als Label zurück
-  means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path, save_model, path, number_clusters, spectral_clustering)
+  means_label <- group_features(features, time_bin, cores, label = T, load_model, model_path,
+                                save_model, path, number_clusters, spectral_clustering)
 
   class_distribution <- table(means_label$Group)
   weights <- class_distribution / nrow(means_label)
@@ -1962,6 +1969,7 @@ visualization_results <- function(features, path, not_randomforest, rank, rank_m
   options(warn = -1)
   results <- read_in(paste0(path, "results.csv"))
 
+  # Convert the date/hour formats into numeric values
   if (is.na(results[1, 1]) == F) {
     if (feature_name_hour %in% colnames(features)) {
       features[feature_name_hour] <- as.numeric(seconds(as_hms(sapply(features[feature_name_hour], as.character))))
@@ -2007,10 +2015,12 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
       insider <- extracted_insider_and_outsider$insider
       colors <- extracted_insider_and_outsider$colors
 
+      # Delet the outsider from the insiders
       if (not_randomforest) {
         insider <- subset(insider, !(insider %in% outsider))
       }
 
+      # Get the Plot-data/color for each entity
       if (not_randomforest) {
         not_included <- c(feature_name_id, feature_name_day)
         if (length(grep(mean_rank, rank_method))==1) {
@@ -2043,6 +2053,8 @@ create_plot <- function(results, features, iterator, i, not_randomforest, palett
 }
 
 extract_insider_and_outsider <- function(not_randomforest, rank_method, iterator, results, features) {
+  # In - & outsider deppends from the machine learning Method and what meathod is used for ranking
+  # because the identifier is different presented or the anomaly is not especially detected
   if (not_randomforest) {
     if (length(grep(mean_rank, rank_method))==1) {
       outsider <- ""

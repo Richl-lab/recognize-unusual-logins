@@ -163,7 +163,7 @@ help_output <- function() {
       "-i        Use the option to ignore the users from x to y, these could reflect the well-know users. The default is 0 to 10.000.",
       "          Start of ignore",
       "          End of ignore",
-      "-c        Insert a number behind -c to use another number of clusters, default is 13. The number should be higher than 3.",
+      "-c        Insert a number behind -c to use another number of clusters, default is 13. The number should be higher than 3 and lower than 10000.",
       "-sc       Using spectral Clustering instead of k-Means",
       "-ro       If the data is readed in parts, this argument with number behind can establish the number of ",
       "          rows that should be readed per round. The default is 10 Million.",
@@ -543,7 +543,7 @@ number_clusters_argument <- function(args, number_clusters) {
         tryCatch(
           expr = {
             number_clusters <- as.integer(args[grep("^-c$", as.character(args)) + 1])
-            if (number_clusters < 4 || number_clusters > 1000) {
+            if (number_clusters > 0) {
               stop_and_help("The inserted number of clusters is lower than 4 or higher than 1000.")
             }else {
               return(number_clusters)
@@ -860,7 +860,7 @@ optimize_date <- function(data, parsed_arguments) {
       startdate_optimized <- as_date(min(data$Time))
     }
   }else {
-    enddate_optimized <- as_date(max(data$Time))
+    enddate_optimized <- as_date(max(data$Time))+days(1)
     startdate_optimized <- as_date(min(data$Time))
   }
 
@@ -1486,7 +1486,7 @@ write_users_with_most_logon_proportion <- function(data, path) {
   write_out(logons, paste0(path, "Users_with_most_logon_types.txt"), row.names = F, col.names = F)
 }
 
-#----------------------------------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------------------------------
 
 # If the script start from console original path is needed
 detect_absolute_path_script <- function(file) {

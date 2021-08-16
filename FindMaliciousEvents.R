@@ -1693,7 +1693,7 @@ validate_hyperparameter <- function(method_config_data, hyperparameter, possible
     if (possible_null == F) {
       stop_and_help(paste("The Hyperparameter", hyperparameter, "can not be a null/0 value."))
     }
-  }else if (is.numeric(method_config_data[[hyperparameter]])) {
+  }else if (is.numeric(method_config_data[[hyperparameter]]) && is.na(method_config_data[[hyperparameter]][2]) ) {
     if (possible_number) {
       if (integer) {
         validate_hyperparamter_is_integer(method_config_data, hyperparameter)

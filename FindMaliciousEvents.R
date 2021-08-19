@@ -499,7 +499,6 @@ with_plots_argument <- function(args, with_plots) {
   return(with_plots)
 }
 
-# Extracted Feature Argument
 extracted_features_argument <- function(args, extracted_features) {
   if (length(grep("^-e$", as.character(args))) != 0) {
     extracted_features <- T
@@ -880,6 +879,8 @@ parted_feature_extraction <- function(data, optimized_arguments, back, row_multi
   return(list(features = features, finished = edgeless_data_finished_flag$finished, back = new_back))
 }
 
+# If the next row in the data, contains a line that should be included in the last time bin,
+# delete the last time bin data
 delete_edges <- function(data, optimized_arguments, back, row_multi) {
 
   time_bin <- optimized_arguments$time_bin

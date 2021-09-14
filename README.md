@@ -74,7 +74,7 @@ ln -s -r FindMaliciousEvents.R ~/.local/bin/FindMaliciousEvents
 The data needs the following structure:
 | Event ID        | Host           | Time  | Logon ID        | User           | Source  | Source Port           | Logon Type  |
 | ------------- |:-------------:| :-----:| :------------- |:-------------:| :-----:|:-------------:| -----:|
-| Integer      | Numeric | Date | Numeric(hex)     | Numeric | Numeric | Integer| Integer |
+| Integer      | Char | Date | Numeric(hex)     | Char | Char | Integer| Integer |
 | 4624     | 1112223      | "2021-06-01 00:00:02" | 0x233eef      | 33339993 | 3333888 | 0 | 2 |
 
 (Default) Users with smaller numbers than 10000 will be removed, because they are interpreted as Well-Known-SIDs. The Software was tested with anonymized Users, Hosts and Sources, so there is no guarantee that it works without that.
@@ -134,7 +134,6 @@ Distributed under the MIT License. See [LICENSE](https://github.com/Richl-lab/re
 Richard Mey
 * Private:richard.meissen@gmail.com
 * University:rmey@hs-mittweida.de
-* Company:richard.mey@syss.de
 
 Project Link/Location:
 
